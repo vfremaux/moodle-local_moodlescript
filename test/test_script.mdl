@@ -1,0 +1,82 @@
+#
+# MoodleScript test script
+#
+
+ADD CATEGORY "My category" IF NOT EXISTS HAVING
+idnumber: NEWCAT
+visible: 1
+
+# French
+ADD CATEGORY "Formation de technicien électricité" IF NOT EXISTS HAVING
+idnumber: NOUVELLECAT
+visible: 1
+
+# Check if not exists.
+ADD CATEGORY "My category" IF NOT EXISTS
+
+ADD COURSE "My new course" AS NEWCOURSE TO idnumber:NEWCAT HAVING
+idnumber: NEWCOURSEID
+visible: 1
+
+# French
+ADD COURSE "Mon nouveau cours d'électricité" AS COURSELEC TO idnumber:NOUVELLECAT HAVING
+idnumber: NEWCOURSEID
+visible: 1
+
+# Adding users
+ADD USER user001 IDENTIFIED BY passTest001*! HAVING
+firstname: User
+lastname: One
+idnumber: U001
+email: user.one@foo.com
+lang: en
+country: UK
+
+ADD USER user002 IDENTIFIED BY passTest002*! HAVING
+firstname: User
+lastname: Two
+idnumber: U002
+email: user.two@foo.com
+lang: en
+country: UK
+
+ADD USER user003 IDENTIFIED BY passTest003*! HAVING
+firstname: User
+lastname: Three
+idnumber: U003
+email: user.three@foo.com
+lang: en
+country: UK
+
+ADD USER teacher001 IDENTIFIED BY passTest001*! HAVING
+firstname: Teacher
+lastname: One
+idnumber: T001
+email: teacher.one@foo.com
+lang: en
+country: UK
+
+# French
+ADD USER eleve001 IDENTIFIED BY passTest001*! HAVING
+firstname: Elève
+lastname: Un
+idnumber: FU001
+email: eleve.un@foo.com
+lang: en
+country: FR
+
+ADD USER eleve002 IDENTIFIED BY passTest002*! HAVING
+firstname: Elève
+lastname: Deux
+idnumber: FU002
+email: eleve.deux@foo.com
+lang: en
+country: FR
+
+ADD USER eleve003 IDENTIFIED BY passTest003*! HAVING
+firstname: Elève
+lastname: Trois
+idnumber: FU003
+email: eleve.trois@foo.com
+lang: en
+country: FR

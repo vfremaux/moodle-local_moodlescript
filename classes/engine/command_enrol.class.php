@@ -1,7 +1,28 @@
-<?php 
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-
+/**
+ * @package local_moodlescript
+ * @category local
+ * @author Valery Fremaux (valery.fremaux@gmail.com)
+ * @copyright (c) 2017 onwards Valery Fremaux (http://www.mylearningfactory.com)
+ */
 namespace local_moodlescript\engine;
+
+defined('MOODLE_INTERNAL') || die();
 
 use \StdClass;
 
@@ -14,13 +35,16 @@ class command_enrol extends tokenizer {
         global $USER;
 
         $this->trace('   Start parse '.$this->remainder);
-        $pattern1 = '/^([a-zA-Z0-9\:_-]+)\s+IN\s+([a-zA-Z0-9\:_-]+)\s+(HAVING)?$/';
-        $pattern2 = '/^([a-zA-Z0-9\:_-]+)\s+IN\s+([a-zA-Z0-9\:_-]+)\s+AS\s+([a-zA-Z0-9\:_-]+)(?:\s+)?(USING)?(?:\s+)?([a-zA-Z]+)?$/';
+        $pattern1 = '/^'.tokenizer::IDENTIFIER.tokenizer::SP.'IN'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP.'(HAVING)?'.tokenizer::OPT_SP.'$/';
+        $pattern2 = '/^'.tokenizer::IDENTIFIER.tokenizer::SP.'IN'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
+        $pattern2 .= 'AS'.tokenizer::SP.tokenizer::IDENTIFIER.'(?:\s+)?(USING)?(?:\s+)?'.tokenizer::OPT_TOKEN.tokenizer::OPT_SP.'$/';
+
         if (preg_match($pattern1, $this->remainder, $matches)) {
 
             $handler = new handle_enrol();
 
             $context = new StdClass;
+            $haserrors = false;
 
             $targetuser = $matches[1];
             $identifier = new parse_identifier('user', $this->logger);
@@ -28,6 +52,11 @@ class command_enrol extends tokenizer {
                 $context->userid = $USER->id;
             } else {
                 $context->userid = $identifier->parse($targetuser);
+            }
+
+            if (empty($context->userid)) {
+                $this->error('Command_enrol: Unresolved target user (null)');
+                $haserrors = true;
             }
 
             $target = $matches[2];
@@ -38,11 +67,31 @@ class command_enrol extends tokenizer {
                 $context->enrolcourseid = $identifier->parse($target);
             }
 
-            $this->parse_having($matches[3], $context);
+            if (empty($context->enrolcourseid)) {
+                $this->error('Command_enrol: Unresolved target course (null)');
+                $haserrors = true;
+            }
+
+            $this->parse_having($context);
 
             if (!empty($context->params->role)) {
                 $identifier = new parse_identifier('role', $this->logger);
-                $context->role = $identifier->parse($context->params->role);
+                $context->roleid = $identifier->parse($context->params->role);
+                if (empty($context->roleid)) {
+                    $this->error('Command_enrol: Unresolved target course (null)');
+                    $haserrors = true;
+                }
+            }
+
+            if (!empty($context->params->method)) {
+                $context->method = $context->params->method;
+            } else {
+                $context->method = 'manual';
+            }
+
+            if ($haserrors) {
+                $this->trace('   End parse +e');
+                return [null, null];
             }
 
             $this->trace('   End parse ++');
@@ -53,6 +102,7 @@ class command_enrol extends tokenizer {
             $handler = new handle_enrol();
 
             $context = new StdClass;
+            $haserrors = false;
 
             $targetuser = $matches[1];
             $identifier = new parse_identifier('user', $this->logger);
@@ -60,6 +110,11 @@ class command_enrol extends tokenizer {
                 $context->userid = $USER->id;
             } else {
                 $context->userid = $identifier->parse($targetuser);
+            }
+
+            if (empty($context->userid)) {
+                $this->error('Command_enrol: Unresolved target user (null)');
+                $haserrors = true;
             }
 
             $target = $matches[2];
@@ -70,13 +125,28 @@ class command_enrol extends tokenizer {
                 $context->enrolcourseid = $identifier->parse($target);
             }
 
+            if (empty($context->enrolcourseid)) {
+                $this->error('Command_enrol: Unresolved target course (null)');
+                $haserrors = true;
+            }
+
             $identifier = new parse_identifier('role', $this->logger);
             $context->roleid = $identifier->parse($matches[3]);
 
-            if (!empty($matches[4])) {
-                $context->method = $matches[4];
+            if (empty($context->roleid)) {
+                $this->error('Command_enrol: Unresolved role (null)');
+                $haserrors = true;
+            }
+
+            if (!empty($matches[5])) {
+                $context->method = $matches[5];
             } else {
                 $context->method = 'manual';
+            }
+
+            if ($haserrors) {
+                $this->trace('   End parse +e');
+                return [null, null];
             }
 
             $this->trace('   End parse ++');

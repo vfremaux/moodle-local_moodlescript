@@ -1,5 +1,25 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * @package local_moodlescript
+ * @category local
+ * @author Valery Fremaux (valery.fremaux@gmail.com)
+ * @copyright (c) 2017 onwards Valery Fremaux (http://www.mylearningfactory.com)
+ */
 namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
@@ -52,7 +72,11 @@ class parser {
      */
     public $translates = array(
         'ENROL METHOD' => 'ENROL_METHOD',
-        'CATEGORY PATH' => 'CATEGORY_PATH'
+        'CATEGORY PATH' => 'CATEGORY_PATH',
+        'ROLE ASSIGN' => 'ROLE_ASSIGN',
+        'ROLE ASSIGNMENT' => 'ROLE_ASSIGNMENT',
+        'ROLE ASSIGNMENTS' => 'ROLE_ASSIGNMENTS',
+        'PROFILE VALUE' => 'PROFILE_VALUE',
     );
 
     public function __construct($script) {
@@ -67,14 +91,18 @@ class parser {
         $this->trace("Loading handles");
         $globs = glob($CFG->dirroot.'/local/moodlescript/classes/engine/handle*');
         foreach ($globs as $glob) {
-            $this->trace("...Loading handle ".$glob);
+            if ($CFG->debug = DEBUG_DEVELOPER) {
+                $this->trace("...Loading handle ".$glob);
+            }
             include_once($glob);
         }
 
         $this->trace("Loading parsers ");
         $globs = glob($CFG->dirroot.'/local/moodlescript/classes/engine/parse*');
         foreach ($globs as $glob) {
-            $this->trace("...Loading parser ".$glob);
+            if ($CFG->debug = DEBUG_DEVELOPER) {
+                $this->trace("...Loading parser ".$glob);
+            }
             include_once($glob);
         }
     }
@@ -84,6 +112,7 @@ class parser {
 
         $this->context = $globalcontext;
 
+        debug_trace('Parser starting');
         $this->trace('Start parsing...');
         if (empty($this->script)) {
             $this->trace('No script to process');
@@ -92,9 +121,11 @@ class parser {
 
         while (!empty($this->script)) {
             $line = array_shift($this->script);
+
             if ($line == '' ||
                 preg_match('/^[\/#;]/', $line) ||
                     preg_match('/^\s+$/', $line)) {
+                // Remove empty or comments lines.
                 continue;
             }
 
@@ -111,10 +142,15 @@ class parser {
                 $keyword = $matches[1];
                 $remainder = $matches[2];
 
-                // Process the remainder to replace all the global context variables.
-                foreach ($globalcontext as $key => $value) {
-                    $pattern = '/^\:'.$key.'|(?:\s)\:'.$key.'/';
-                    $remainder = preg_replace($pattern, $value, $remainder);
+                $remainder = $this->global_replace($remainder);
+                if (is_null($remainder)) {
+                    return null;
+                }
+
+                if ($CFG->debug == DEBUG_DEVELOPER) {
+                    if (function_exists('debug_trace')) {
+                        debug_trace('Parser Class: parsing script line (replaced) '.$keyword.' '.$remainder);
+                    }
                 }
 
                 $class = '\\local_moodlescript\\engine\\command_'.\core_text::strtolower(trim($keyword));
@@ -167,5 +203,42 @@ class parser {
         if (!empty($this->trace)) {
             return implode("\n", $this->trace);
         }
+    }
+
+    public function global_replace($input) {
+        // Process the input to replace all the global context variables.
+        foreach ($this->context as $key => $value) {
+            if (empty($key)) {
+                continue;
+            }
+            if (!is_string($key)) {
+                $this->errorlog[] = 'Invalid non scalar key in global context';
+                return null;
+            }
+            // Be carefull that till here, $value may be an array !
+            if ($key == 'config') {
+                /*
+                 * special case if an environmental component has dropped his global config in the
+                 * global context.
+                 */
+                foreach ($value as $configkey => $configvalue) {
+                    $configvalue = str_replace(':', '_', $configvalue); // Filter syntaxic harmful chars.
+                    $pattern = '/^\:'.$configkey.'|(?<=[^a-zA-Z0-9])\:'.$configkey.'/';
+                    $input = preg_replace($pattern, $configvalue, $input);
+                }
+                continue;
+            }
+
+            $value = str_replace(':', '_', $value); // Filter syntaxic harmful chars.
+            if (!is_string($value)) {
+                $this->errorlog[] = 'Invalid non scalar replacement value in global context for key '.$key;
+                return null;
+            }
+            $pattern = '/^\:'.$key.'|(?<=[^a-zA-Z0-9])\:'.$key.'/';
+            $IN = $input;
+            $input = preg_replace($pattern, $value, $input);
+        }
+
+        return $input;
     }
 }

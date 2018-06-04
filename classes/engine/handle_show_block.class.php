@@ -1,18 +1,41 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-
+/**
+ * @package local_moodlescript
+ * @category local
+ * @author Valery Fremaux (valery.fremaux@gmail.com)
+ * @copyright (c) 2017 onwards Valery Fremaux (http://www.mylearningfactory.com)
+ */
 namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
 class handle_show_block extends handler {
 
-    public function execute($result, &$context, &$logger) {
+    public function execute($result, &$context, &$stack) {
         global $DB;
 
-        $this->log = $logger;
+        $this->stack = $stack;
 
-        $parentcontext = context_course::instance($context->showcourseid);
+        if ($context->showcourseid == 'current') {
+            $context->showcourseid = $context->courseid;
+        }
+
+        $parentcontext = \context_course::instance($context->showcourseid);
 
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
         $blockinstances = $DB->get_records('block_instances', $params);
@@ -22,10 +45,10 @@ class handle_show_block extends handler {
         }
     }
 
-    public function check(&$context, &$logger) {
+    public function check(&$context, &$stack) {
         global $DB;
 
-        $this->log = $logger;
+        $this->stack = &$stack;
 
         if (empty($context->blockname)) {
             $this->error('Empty block name');
@@ -40,20 +63,20 @@ class handle_show_block extends handler {
             }
         }
 
-        if (empty($context->hidecourseid)) {
+        if (empty($context->showcourseid)) {
             $this->error('Empty course id');
         }
 
-        if ($context->hidecourseid != 'current') {
-            if (!is_numeric($context->hidecourseid)) {
-                $this->error('Target course id is not a number');
-            }
+        if ($context->showcourseid == 'current') {
+            $context->showcourseid = $context->courseid;
         }
 
-        if (!$course = $DB->get_record('course', array('id' => $context->hidecourseid))) {
+        if (!is_numeric($context->showcourseid)) {
+            $this->error('Target course id is not a number');
+        }
+
+        if (!$course = $DB->get_record('course', array('id' => $context->showcourseid))) {
             $this->error('Target course does not exist');
         }
-
-        return (!empty($this->errorlog));
     }
 }

@@ -7,9 +7,9 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_enrol_method extends handler {
 
-    public function execute($result, &$context, &$logger) {
+    public function execute($result, &$context, &$stack) {
 
-        $this->log = &$logger;
+        $this->stack = &$stack;
 
         if ($context->enrolcourseid == 'current') {
             $courseid = $context->courseid;
@@ -39,10 +39,9 @@ class handle_remove_enrol_method extends handler {
         }
     }
 
-    public function check(&$context, &$logger) {
+    public function check(&$context, &$stack) {
 
-        $this->log = &$logger;
-        $this->errorlog = &$logger;
+        $this->stack = &$stack;
 
         if (empty($context->method)) {
             $this->error('Missing enrol method for deletion');
@@ -53,7 +52,5 @@ class handle_remove_enrol_method extends handler {
                 $this->error('Target course does not exist');
             }
         }
-
-        return (!empty($this->errorlog));
     }
 }

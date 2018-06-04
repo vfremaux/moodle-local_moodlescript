@@ -1,6 +1,25 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-
+/**
+ * @package local_moodlescript
+ * @category local
+ * @author Valery Fremaux (valery.fremaux@gmail.com)
+ * @copyright (c) 2017 onwards Valery Fremaux (http://www.mylearningfactory.com)
+ */
 namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
@@ -10,18 +29,17 @@ class handle_hide_block extends handler {
     /**
      * Hide all instances of blockname in a course.
      */
-    public function execute($result, &$context, &$logger) {
+    public function execute($result, &$context, &$stack) {
         global $DB;
 
-        $this->log = &$logger;
+        $this->stack = &$stack;
 
         if ($context->hidecourseid == 'current') {
-            $parentcontext = context_course::instance($context->courseid);
-            $course = $DB->get_record('course', array('id' => $context->courseid));
-        } else {
-            $parentcontext = context_course::instance($context->hidecourseid);
-            $course = $DB->get_record('course', array('id' => $context->hidecourseid));
+            $context->hidecourseid = $context->courseid;
         }
+
+        $parentcontext = \context_course::instance($context->hidecourseid);
+        $course = $DB->get_record('course', array('id' => $context->hidecourseid));
 
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
         $blockinstances = $DB->get_records('block_instances', $params);
@@ -35,7 +53,7 @@ class handle_hide_block extends handler {
                 }
             } else {
                 // No info about any exmplicit position. We need to create some.
-                $bp = new StdClass;
+                $bp = new \StdClass;
                 $bp->blockinstanceid = $bi->id;
                 $bp->contextid = $bi->parentcontextid;
                 // We hide it in the course only. Not in subcontexts.
@@ -59,10 +77,10 @@ class handle_hide_block extends handler {
         }
     }
 
-    public function check(&$context, &$logger) {
+    public function check(&$context, &$stack) {
         global $DB;
 
-        $this->log = &$logger;
+        $this->stack = &$stack;
 
         if (empty($context->blockname)) {
             $this->error('Empty block name');
@@ -81,10 +99,12 @@ class handle_hide_block extends handler {
             $this->error('Empty course id');
         }
 
-        if ($context->hidecourseid != 'current') {
-            if (!is_numeric($context->hidecourseid)) {
-                $this->error('target course id is not a number');
-            }
+        if ($context->hidecourseid == 'current') {
+            $context->hidecourseid = $context->courseid;
+        }
+
+        if (!is_numeric($context->hidecourseid)) {
+            $this->error('target course id is not a number');
         }
 
         if (!$course = $DB->get_record('course', array('id' => $context->hidecourseid))) {
@@ -106,7 +126,5 @@ class handle_hide_block extends handler {
                 assert(1);
             }
         }
-
-        return (!empty($this->errorlog));
     }
 }

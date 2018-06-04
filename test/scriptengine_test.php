@@ -26,11 +26,9 @@ defined('MOODLE_INTERNAL') || die;
 
 global $CFG;
 
-// Require all impplemented handlers.
-$handlers = glob($CFG->dirroot.'/blocks/publishflow/classes/postprocessing/*');
-foreach ($hanlders as $hndfile) {
-    include_once($hndfile);
-}
+include($CFG->dirroot.'/local/moodlescript/lib.php');
+
+local_moodlescript_load_engine();
 
 /**
  *  tests class for local_shop.
@@ -76,26 +74,33 @@ class block_publishflow_scriptengine_testcase extends advanced_testcase {
         $category1 = $this->getDataGenerator()->create_category();
         $category2 = $this->getDataGenerator()->create_category();
 
-        $params = array('name' => 'Publishflow test course 1', 'shortname' => 'PFTEST1', 'category' => $category1->id, 'idnumber' => 'PFTEST1');
+        $params = array('name' => 'Moodlescript test course 1', 'shortname' => 'PFTEST1', 'category' => $category1->id, 'idnumber' => 'PFTEST1');
         $course1 = $this->getDataGenerator()->create_course($params);
         $contextid1 = context_course::instance($course1->id);
 
-        $params = array('name' => 'Publishflow test course 2', 'shortname' => 'PFTEST2', 'category' => $category1->id, 'idnumber' => 'PFTEST2');
+        $params = array('name' => 'Moodlescript test course 2', 'shortname' => 'PFTEST2', 'category' => $category1->id, 'idnumber' => 'PFTEST2');
         $course2 = $this->getDataGenerator()->create_course($params);
         $contextid2 = context_course::instance($course2->id);
+
+        $user1 = $this->getDataGenerator()->create_user(array('email'=>'user1@example.com', 'username'=>'user1'));
+        $user2 = $this->getDataGenerator()->create_user(array('email'=>'user2@example.com', 'username'=>'user2'));
 
         $this->setAdminUser();
 
         $this->assertTrue(empty($enrolled));
 
         // Prepare instances of handlers.
-        $handleaddblock = new \block_publishflow\postprocessing\handle_add_block();
-        $handleremoveblock = new \block_publishflow\postprocessing\handle_remove_block();
-        $handlehideblock = new \block_publishflow\postprocessing\handle_hide_block();
-        $handleshowblock = new \block_publishflow\postprocessing\handle_show_block();
-        $handleaddenrolmethod = new \block_publishflow\postprocessing\handle_add_enrol_method_block();
-        $handleremoveenrolmethod = new \block_publishflow\postprocessing\handle_remove_enrol_method_block();
-        $handlemovecourse = new \block_publishflow\postprocessing\handle_move_course();
+        $handleaddblock = new \local_moodlescript\engine\handle_add_block();
+        $handleremoveblock = new \local_moodlescript\engine\handle_remove_block();
+        $handlehideblock = new \local_moodlescript\engine\handle_hide_block();
+        $handleshowblock = new \local_moodlescript\engine\handle_show_block();
+        $handleaddenrolmethod = new \local_moodlescript\engine\handle_add_enrol_method_block();
+        $handleremoveenrolmethod = new \local_moodlescript\engine\handle_remove_enrol_method_block();
+        $handlemovecourse = new \local_moodlescript\engine\handle_move_course();
+        $handleenroluser = new \local_moodlescript\engine\handle_enrol();
+        $handleunenroluser = new \local_moodlescript\engine\handle_unenrol();
+        $handleassignuserrole = new \local_moodlescript\engine\handle_assign_role();
+        $handleunassignuserrole = new \local_moodlescript\engine\handle_unassign_role();
 
         $result = array();
 
@@ -259,5 +264,94 @@ class block_publishflow_scriptengine_testcase extends advanced_testcase {
 
         $this->assertTrue($category1->id == $DB->get_field('course', 'category', array('id' => $course2->id)));
 
+        // ENROL USER.
+
+        $rolestudent = $DB->get_record('role', array('shortname' => 'student'));
+
+        $context = new StdClass;
+        $context->enrolcourseid = $course1->id;
+        $context->userid = $user2->id;
+        $context->method = 'manual';
+        $context->roleid = $rolestudent->id;
+        $result = $handleenroluser->execute($results, $context, $logger);
+
+        $course1context = context_course::instance($course1->id);
+        $rolecc = $DB->get_record('role', array('shortname' => 'student'));
+        $params = array('contextid' => $course1context->id,
+                        'userid' => $user2->id,
+                        'roleid' => $rolestudent->id);
+        $this->assertIsNotNull($DB->get_record('role_assignments', $params));
+
+        $course1manualenrol = $DB->get_record('enrol', array('courseid' => $course1->id, 'enrol' => 'manual'));
+
+        $course1context = context_course::instance($course1->id);
+        $rolecc = $DB->get_record('role', array('shortname' => 'student'));
+        $params = array('courseid' => $course1->id,
+                        'userid' => $user2->id,
+                        'enrolid' => $course1manualenrol->id);
+        $this->assertIsNotNull($DB->get_record('user_enrolment', $params));
+
+        // UNENROL USER.
+
+        $context = new StdClass;
+        $context->enrolcourseid = $course1->id;
+        $context->userid = $user2->id;
+        $context->method = 'manual';
+        $context->roleid = $rolestudent->id;
+        $result = $handleunenroluser->execute($results, $context, $logger);
+
+        $course1context = context_course::instance($course1->id);
+        $rolecc = $DB->get_record('role', array('shortname' => 'student'));
+        $params = array('contextid' => $course1context->id,
+                        'userid' => $user2->id,
+                        'roleid' => $rolestudent->id);
+        $this->assertIsNull($DB->get_record('role_assignments', $params));
+
+        // ASSIGN ROLE.
+
+        $context = new StdClass;
+        $context->rolecourseid = $course1->id;
+        $context->userid = $user1->id;
+        $context->shortname = 'coursecreator';
+        $result = $handleassignuserrole->execute($results, $context, $logger);
+
+        $course1context = context_course::instance($course1->id);
+        $rolecc = $DB->get_record('role', array('shortname' => 'coursecreator'));
+        $params = array('contextid' => $course1context->id,
+                        'userid' => $user1->id,
+                        'roleid' => $rolecc->id);
+        $this->assertIsNotNull($DB->get_record('role_assignments', $params));
+
+        // UNASSIGN ROLE.
+
+        $context = new StdClass;
+        $context->rolecourseid = $course1->id;
+        $context->userid = $user1->id;
+        $context->shortname = 'coursecreator';
+        $result = $handleunassignuserrole->execute($results, $context, $logger);
+
+        $course1context = context_course::instance($course1->id);
+        $rolecc = $DB->get_record('role', array('shortname' => 'coursecreator'));
+        $params = array('contextid' => $course1context->id,
+                        'userid' => $user1->id,
+                        'roleid' => $rolecc->id);
+        $this->assertIsNull($DB->get_record('role_assignments', $params));
+
     }
+
+    public function test_parsers() {
+        global $DB, $CFG, $SITE;
+
+        $testscipt = implode("\n", file($CFG->dirroot.'/local/moodlescript/test/test_script.mdl'));
+
+        $this->resetAfterTest();
+
+        $parser = new \local_moodlescript\engine\parser($testscript);
+        $globalcontext = array('site' => $SITE->fullname);
+        $stack = $parser->parse($globalcontext);
+
+        $this->assertIsNotNull($stack);
+
+    }
+
 }
