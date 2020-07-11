@@ -26,20 +26,22 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_list_globals extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         $this->log("GLOBAL CONTEXT");
         foreach ($context as $key => $value) {
             $this->log("$key: $value");
         }
         $this->log("\n");
+
+        return true;
     }
 
     public function check(&$context, &$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         return false;
     }

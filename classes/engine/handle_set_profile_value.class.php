@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_set_profile_value extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB, $USER;
 
         $this->stack = $stack;
@@ -47,8 +47,8 @@ class handle_set_profile_value extends handler {
             $data->id = $DB->insert_record('user_info_data', $data);
         }
 
-        $result[] = $data->id;
-        return $result;
+        $results[] = $data->id;
+        return $data->id;
     }
 
     public function check(&$context, &$stack) {

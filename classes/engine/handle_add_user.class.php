@@ -31,7 +31,10 @@ use \Exception;
 
 class handle_add_user extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    protected $acceptedkeys = array('firstname', 'lastname', 'email', 'confirmed', 'policyagreed', 'suspended', 'country', 'city', 'auth', 'emailstop',
+                                'icq', 'skype', 'yahoo', 'msn', 'aim', 'phone2', 'phone2', 'institution', 'department', 'lang');
+
+    public function execute(&$results, &$context, &$stack) {
         global $DB, $CFG;
 
         $this->stack = $stack;
@@ -42,7 +45,7 @@ class handle_add_user extends handler {
 
         // Transpose params.
         foreach ($context->params as $key => $value) {
-            if (in_array($key, $acceptedkeys)) {
+            if (in_array($key, $this->acceptedkeys)) {
                 $user->$key = $value;
             }
         }
@@ -51,10 +54,15 @@ class handle_add_user extends handler {
             $user->id = user_create_user($user, true, false);
         } catch (Exception $e) {
             mtrace("User creation error ".$e->get_message());
+            return null;
         }
 
-        $result[] = $user->id;
-        return $result;
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('userid', $user->id);
+        }
+
+        $results[] = $user->id;
+        return $user->id;
     }
 
     public function check(&$context, &$stack) {

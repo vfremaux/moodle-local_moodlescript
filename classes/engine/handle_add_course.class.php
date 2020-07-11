@@ -22,12 +22,14 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_course extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $SESSION;
+    public function execute(&$results, &$context, &$stack) {
+        global $SESSION, $DB;
 
         $acceptedattrs = array('idnumber', 'visible', 'format', 'timestart');
 
@@ -41,22 +43,45 @@ class handle_add_course extends handler {
 
         if ($context->addcoursecatid == 'current') {
             $courserec->category = $context->coursecatid;
+            $errormessage = "Add course runtime : Current category does not exist";
         } else {
             $courserec->category = $context->addcoursecatid;
+            $errormessage = "Add course runtime : Category {$context->addcoursecatid} does not exist";
+        }
+
+        if ($this->is_runtime($courserec->category)) {
+            $identifier = new \local_moodlescript\engine\parse_identifier('course_categories', $this);
+            $courserec->category = $identifier->parse($courserec->category, 'idnumber', 'runtime');
+        }
+
+        if (!$DB->record_exists('course_categories', ['id' => $context->category])) {
+            throw new moodle_exception($errormessage);
         }
 
         // Aggregate params.
-        foreach ($context->params as $key => $value) {
-            if (in_array($key, $acceptedattrs)) {
-                $courserec->$key = $value;
+        if (!empty($context->params)) {
+            foreach ($context->params as $key => $value) {
+                if (in_array($key, $acceptedattrs)) {
+                    $courserec->$key = $value;
+                }
             }
         }
 
         $SESSION->nocoursetemplateautoenrol = true;
-        $newcourse = create_course($data);
+        if ($oldrec = $DB->get_record('course', ['shortname' => $courserec->shortname])) {
+            update_course($courserec);
+        } else {
+            $newcourse = create_course($courserec);
+        }
         $SESSION->nocoursetemplateautoenrol = false;
 
-        $result[] = $newcourse->id;
+        $results[] = $newcourse->id;
+
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('courseid', $newcourse->id);
+            $this->stack->update_current_context('coursecatid', $courserec->category);
+        }
+
         return $result;
     }
 
@@ -64,27 +89,27 @@ class handle_add_course extends handler {
         global $DB;
 
         $this->stack = $stack;
+        $this->context = $context;
 
         if (empty($context->fullname)) {
-            $this->error('empty fullname');
+            $this->error('Check Add Course : empty fullname');
         }
 
         if (empty($context->shortname)) {
-            $this->error('empty shortname');
+            $this->error('Check Add Course : empty shortname');
         }
 
         if ($oldcourse = $DB->get_record('course', array('shortname' => $context->shortname))) {
-            $this->error('shortname already used');
+            $this->error("Check Add Course : shortname {$context->shortname} already used");
         }
 
-        if ($context->addcoursecatid == 'current') {
-            $context->addcoursecatid = $context->coursecatid;
-        }
-
-        if (!$coursecat = $DB->get_record('course_categories', array('id' => $context->addcoursecatid))) {
-            $this->error('Missing target course category for course creation');
+        if ($context->addcoursecatid != 'current') {
+            if (!$this->is_runtime($context->addcoursecatid)) {
+                if (!$coursecat = $DB->get_record('course_categories', array('id' => $context->addcoursecatid))) {
+                    $this->error("Check Add Course : Missing target course category {$context->addcoursecatid} for course creation");
+                }
+            }
         }
 
     }
-
 }

@@ -44,16 +44,20 @@ abstract class tokenizer {
     const OPT_NON_SPACE = '\\S*?';
     const ALPHANUM = '([a-zA-Z0-9]+)';
     const OPT_ALPHANUM = '([a-zA-Z0-9]*)';
+    const INTNUMBER = '([0-9]+)';
+    const OPT_INTNUMBER = '([0-9]*)';
+    const NUMBER = '([0-9.]+)';
+    const OPT_NUMBER = '([0-9.]*)';
     const TOKEN = '([a-zA-Z0-9_]+)';
     const OPT_TOKEN = '([a-zA-Z0-9_]*)';
-    const IDENTIFIER = '([a-zA-Z0-9\:_-]+)';
-    const OPT_IDENTIFIER = '([a-zA-Z0-9\:_-]*)';
-    const QUOTED_IDENTIFIER = '([a-zA-Z0-9\:_-]+|[\\\'"][a-zA-Z0-9 \:_-]+?["\\\'])';
-    const OPT_QUOTED_IDENTIFIER = '([a-zA-Z0-9\:_-]*|[\\\'"]?[a-zA-Z0-9 \:_-]*?["\\\']?)';
-    const QUOTED_EXT_LITTERAL = '([\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.\\/ \:_-]+?["\\\']?)';
-    const OPT_QUOTED_EXT_LITTERAL = '([\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.\\/ \:_-]*?["\\\']?)';
-    const QUOTED_EXT_IDENTIFIER = '([.@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]+|[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\:_-]+?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.\\/ \:_-]+?["\\\']?)';
-    const OPT_QUOTED_EXT_IDENTIFIER = '([.@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]*|[a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ@\:_-]*?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.\\/ \:_-]*?["\\\']?)';
+    const IDENTIFIER = '([a-zA-Z0-9:_-]+)';
+    const OPT_IDENTIFIER = '([a-zA-Z0-9:_-]*)';
+    const QUOTED_IDENTIFIER = '([a-zA-Z0-9:_-]+|[\\\'"][a-zA-Z0-9 :_-]+?["\\\'])';
+    const OPT_QUOTED_IDENTIFIER = '([a-zA-Z0-9\:_-]*|[\\\'"]?[a-zA-Z0-9 :_-]*?["\\\']?)';
+    const QUOTED_EXT_LITTERAL = '("?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\'\\/ :_-]+?"?)';
+    const OPT_QUOTED_EXT_LITTERAL = '("?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\'\\/ \:,_-]*?"?)';
+    const QUOTED_EXT_IDENTIFIER = '([.,@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]+|[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\:_-]+?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\\/ \:_-]+?["\\\']?)';
+    const OPT_QUOTED_EXT_IDENTIFIER = '([.,@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]*|[a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ@\:_-]*?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\\/ \:_-]*?["\\\']?)';
 
     protected $remainder;
 
@@ -81,12 +85,13 @@ abstract class tokenizer {
 
     protected function standard_sub_parse($matches, $class, $classfile) {
 
-        if (!file_exists($this->coderoot.$classfile.'.class.php')) {
+        $subpath = $this->coderoot.$classfile.'.class.php';
+        if (!file_exists($subpath)) {
             $this->error('Missing parser class for command '.$class);
             $this->trace('   End parse -e');
             return [null, null];
         }
-        include_once($this->coderoot.$classfile.'.class.php');
+        include_once($subpath);
 
         $remainder = $matches[2];
         $tokenizer = new $class($remainder, $this->parser);
@@ -97,11 +102,14 @@ abstract class tokenizer {
 
     protected function parse_having($input, &$output) {
         if ($input) {
-            $having = new \local_moodlescript\engine\parse_having('', $this->parser, $this->logger);
+            $having = new \local_moodlescript\engine\parse_having('', $this->parser);
             if ($params = $having->parse()) {
+                /*
                 foreach ($params as $key => $value) {
                     $output->$key = $value;
                 }
+                */
+                $output->params = $params;
             }
         }
     }

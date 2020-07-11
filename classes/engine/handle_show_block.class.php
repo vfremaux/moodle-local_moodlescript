@@ -26,7 +26,7 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_show_block extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
         $this->stack = $stack;
@@ -40,43 +40,49 @@ class handle_show_block extends handler {
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
         $blockinstances = $DB->get_records('block_instances', $params);
         foreach ($blockinstances as $bi) {
-            $bi->visible = 1;
-            $DB->update_record('block_instances', $bi);
+            $params = array('blockinstanceid' => $bi->id, 'visible' => 0);
+            $hiddenpositions = $DB->get_records('block_positions', $params);
+            if ($hiddenpositions) {
+                foreach ($hiddenpositions as $pos) {
+                    $pos->visible = 1;
+                    $DB->update_record('block_positions', $pos);
+                }
+            }
         }
     }
 
     public function check(&$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if (empty($context->blockname)) {
-            $this->error('Empty block name');
+            $this->error('Check Show Block : Empty block name');
         }
 
         $block = $DB->get_record('block', array('name' => $context->blockname));
         if (empty($block)) {
-            $this->error('Block is not installed');
+            $this->error('Check Show Block : Block is not installed');
         } else {
             if ($block->visible) {
-                $this->error('Block is not enabled');
+                $this->error('Check Show Block : Block is not enabled');
             }
         }
 
         if (empty($context->showcourseid)) {
-            $this->error('Empty course id');
+            $this->error('Check Show Block : Empty course id');
         }
 
-        if ($context->showcourseid == 'current') {
-            $context->showcourseid = $context->courseid;
+        if ($context->showcourseid != 'current') {
+            if (!$this->is_runtime($context->showcourseid)) {
+                if (!$course = $DB->get_record('course', array('id' => $context->showcourseid))) {
+                    $this->error('Check Show Block : Missing target course for block insertion');
+                }
+            }
         }
 
         if (!is_numeric($context->showcourseid)) {
-            $this->error('Target course id is not a number');
-        }
-
-        if (!$course = $DB->get_record('course', array('id' => $context->showcourseid))) {
-            $this->error('Target course does not exist');
+            $this->error('Check Show Block : Target course id is not a number');
         }
     }
 }

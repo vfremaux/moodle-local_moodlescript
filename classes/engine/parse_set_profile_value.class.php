@@ -34,8 +34,10 @@ class parse_set_profile_value extends tokenizer {
     public function parse() {
         $this->trace('...Start parse '.$this->remainder);
 
-        $pattern = tokenizer::IDENTIFIER.tokenizer::SP.'TO'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER;
+        $pattern = '/^';
+        $pattern .= tokenizer::IDENTIFIER.tokenizer::SP.'TO'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER;
         $pattern .= tokenizer::SP.'FOR USER'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER;
+        $pattern .= '/';
 
         if (preg_match($pattern, trim($this->remainder), $matches)) {
 

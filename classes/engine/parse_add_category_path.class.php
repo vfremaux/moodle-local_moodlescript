@@ -24,8 +24,6 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot.'/lib/coursecatlib.php');
-
 use \StdClass;
 
 class parse_add_category_path extends tokenizer {
@@ -37,7 +35,7 @@ class parse_add_category_path extends tokenizer {
         $this->trace('   Start parse : '.$this->remainder);
 
         $pattern = '/^';
-        $pattern .= tolenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
+        $pattern .= tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
         $pattern .= 'IN'.tokenizer::SP.tokenizer::IDENTIFIER.tokenizer::OPT_SP;
         $pattern .= '(IF NOT EXISTS)?'.tokenizer::OPT_SP;
         $pattern .= '(HAVING)?'.tokenizer::OPT_SP;

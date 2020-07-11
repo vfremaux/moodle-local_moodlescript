@@ -23,10 +23,19 @@
 namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
+require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 use \StdClass;
 
 class parse_backup_course extends tokenizer {
+
+    public static $samples;
+
+    public function __construct($remainder, &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "BACKUP COURSE <courseidentifier> FOR <target>\n";
+        self::$samples = "BACKUP COURSE <courseidentifier> FOR <target> WITH USERS\n";
+    }
 
     /*
      * Add keyword needs find what to add in the remainder
@@ -37,6 +46,7 @@ class parse_backup_course extends tokenizer {
         $pattern = '/^';
         $pattern .= tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
         $pattern .= 'FOR'.tokenizer::SP.tokenizer::TOKEN.tokenizer::OPT_SP;
+        $pattern .= '(WITH USERS)?'.tokenizer::OPT_SP;
         $pattern .= '$/';
 
         if (preg_match($pattern, trim($this->remainder), $matches)) {
@@ -51,6 +61,8 @@ class parse_backup_course extends tokenizer {
                 $context->backupcourseid = 'current';
             }
             $context->target = $matches[2];
+
+            $context->withusers = @$matches[3];
 
             $this->trace('...End parse ++');
             return array($handler, $context);

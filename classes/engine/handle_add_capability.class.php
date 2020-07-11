@@ -24,14 +24,17 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
+use \context;
+use \context_system;
+
 class handle_add_capability extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $this->context = $context;
 
         if (empty($context->params->permission)) {
             $cappermission = 'allow';
@@ -62,30 +65,32 @@ class handle_add_capability extends handler {
         }
 
         if (empty($context->params->contextid)) {
-            $capcontext = \context_system::instance();
+            $capcontext = context_system::instance();
         } else {
-            $capcontext = \context::instance_by_id($context->params->contextid);
+            $capcontext = context::instance_by_id($context->params->contextid);
         }
 
         role_change_permission($context->roleid, $capcontext, $context->capability, $permission);
         $role = $DB->get_record('role', array('id' => $context->roleid));
 
         $this->log('Capability "'.$context->capability.'" added to role '.$role->shortname.' with permission "'.$cappermission.'"');
+
+        return true;
     }
 
     public function check(&$context, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $this->context = $context;
 
         if (empty($context->capability)) {
-            $this->error('empty capability');
+            $this->error('Add capability : empty capability');
         }
 
         if (empty($context->roleid)) {
-            $this->error('empty roleid');
+            $this->error('Add capability : empty roleid');
         }
     }
 

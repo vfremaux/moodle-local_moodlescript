@@ -32,7 +32,7 @@ class parse_add_course extends tokenizer {
 
     public function __construct($remainder, &$parser) {
         parent::__construct($remainder, $parser);
-        self::$samples = "ADD COURSE \"<course name>\" AS \"<shortname>\" TO idnumber:<coursecatidnum> HAVING\n";
+        self::$samples = "ADD COURSE \"<course name>\" AS <shortname> TO idnumber:<coursecatidnum> HAVING\n";
         self::$samples .= "idnumber: <courseidnum>\n";
         self::$samples .= "visible: 0|1\n\n";
     }
@@ -62,11 +62,11 @@ class parse_add_course extends tokenizer {
             $context->shortname = $matches[2];
 
             $target = $matches[3];
-            $identifier = new \local_moodlescript\engine\parse_identifier('course_categories', $this->logger);
+            $identifier = new parse_identifier('course_categories', $this);
             if ($target == 'current') {
                 $context->addcoursecatid = $target;
             } else {
-                $context->addcoursecatid = $identifier->parse($target);
+                $context->addcoursecatid = $identifier->parse($target, 'idnumber');
             }
 
             $this->parse_having(@$matches[4], $context);
@@ -74,7 +74,7 @@ class parse_add_course extends tokenizer {
             $this->trace('...End parse ++');
             return array($handler, $context);
         } else {
-            $this->error("Parse Error : No syntax match ");
+            $this->error("Add Course Parse Error : No syntax match ");
             $this->trace('...End parse --');
             return [null, null];
         }

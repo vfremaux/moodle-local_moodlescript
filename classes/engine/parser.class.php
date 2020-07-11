@@ -22,6 +22,8 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+
 defined('MOODLE_INTERNAL') || die;
 
 require_once($CFG->dirroot.'/local/moodlescript/classes/engine/parse_identifier.class.php');
@@ -107,15 +109,19 @@ class parser {
         }
     }
 
-    public function parse($globalcontext = array()) {
+    public function parse($globalcontext) {
         global $CFG;
 
-        $this->context = $globalcontext;
+        if (is_null($globalcontext)) {
+            $this->context = new StdClass;
+        } else {
+            $this->context = $globalcontext;
+        }
 
-        debug_trace('Parser starting');
-        $this->trace('Start parsing...');
+        $this->trace('Parser: Start parsing...');
         if (empty($this->script)) {
-            $this->trace('No script to process');
+            $this->trace('Parser: No script lines to process');
+            debug($this->print_trace());
             return null;
         }
 
@@ -144,33 +150,34 @@ class parser {
 
                 $remainder = $this->global_replace($remainder);
                 if (is_null($remainder)) {
+                    $this->trace("Parser Exception: Empty arguments command $keyword found.");
+                    $this->debug($this->print_trace());
                     return null;
                 }
 
-                if ($CFG->debug == DEBUG_DEVELOPER) {
-                    if (function_exists('debug_trace')) {
-                        debug_trace('Parser Class: parsing script line (replaced) '.$keyword.' '.$remainder);
-                    }
-                }
+                $this->debug('Parser Class: parsing script line (replaced) '.$keyword.' '.$remainder);
 
                 $class = '\\local_moodlescript\\engine\\command_'.\core_text::strtolower(trim($keyword));
                 $classfile = 'command_'.\core_text::strtolower(trim($keyword));
 
                 if (!file_exists($this->coderoot.$classfile.'.class.php')) {
-                    $this->errorlog[] = 'invalid command '.$class;
+                    $this->errorlog[] = 'Parser Exception: invalid command '.$class;
+                    $this->debug('Parser Exception: invalid command '.$class);
                     return null;
                 }
                 include_once($this->coderoot.$classfile.'.class.php');
 
                 $this->trace('Parsed command '.$class);
                 $tokenizer = new $class($remainder, $this);
-                list ($handler, $context) = $tokenizer->parse();
+                list ($handler, $context) = $tokenizer->parse($globalcontext);
+                $this->trace('');
                 if (!empty($handler)) {
                     $this->stack->register($handler, $context);
                 }
             }
         }
-        $this->trace('End parsing...');
+        $this->trace('Parser: End parsing...');
+        $this->debug("Parse trace:\n".$this->print_trace());
         return $this->stack;
     }
 
@@ -191,6 +198,16 @@ class parser {
             return "No errors.\n";
         }
         return implode("\n", $this->errorlog);
+    }
+
+    public function debug($msg) {
+        global $CFG;
+
+        if ($CFG->debug == DEBUG_DEVELOPER) {
+            if (function_exists('debug_trace')) {
+                debug_trace($msg);
+            }
+        }
     }
 
     public function print_stack() {

@@ -22,11 +22,15 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+use \context_course;
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_block extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
         $this->stack = $stack;
@@ -34,11 +38,16 @@ class handle_add_block extends handler {
         // Get a block instance of the block class.
         $blockinstance = block_instance($context->blockname);
 
-        $blockrecord = new \StdClass;
+        $blockrecord = new StdClass;
         $blockrecord->blockname = $context->blockname;
 
         if ($context->blockcourseid == 'current') {
             $context->blockcourseid = $context->courseid;
+        }
+
+        if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
+            $this->error('Add block runtme : Current Course '.$context->blockcourseid.' does not exist at execution time');
+            throw new execution_exception($this->stack->print_errors());
         }
 
         $parentcontext = \context_course::instance($context->blockcourseid);
@@ -47,8 +56,8 @@ class handle_add_block extends handler {
         if (!$blockinstance->instance_allow_multiple()) {
             $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontextid);
             if ($DB->get_record('block_instances', $params)) {
-                $this->error('Could not instanciate block '.$context->blockname.' because already one in course');
-                return $result;
+                $this->error('Add Block runtime : Could not instanciate block '.$context->blockname.' because already one in course');
+                return false;
             }
         }
 
@@ -67,7 +76,7 @@ class handle_add_block extends handler {
 
         // Now eventually relocate the block locally if additional params have been given.
         $mustrelocate = false;
-        $relocation = new \StdClass;
+        $relocation = new StdClass;
         $relocation->region = $blockrecord->defaultregion;
         $relocation->weight = $blockrecord->defaultweight;
 
@@ -113,17 +122,23 @@ class handle_add_block extends handler {
             $pagetype = 'course-view-' . $courseformat;
             $relocation->pagetype = $pagetype;
             $relocation->subpage = '';
-            $coursecontext = \context_course::instance($context->blockcourseid);
+            $coursecontext = context_course::instance($context->blockcourseid);
             $relocation->contextid = $coursecontext->id;
             $DB->insert_record('block_positions', $relocation);
             $this->log('Block '.$context->blockname.' relocated in course '.$context->blockcourseid);
         }
 
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('blockid', $blockid);
+        }
 
-        $result[] = $blockid;
-        return $result;
+        $results[] = $blockid;
+        return $blockid;
     }
 
+    /**
+     * Pre-checks executability conditions (static).
+     */
     public function check(&$context, &$stack) {
         global $DB, $CFG;
 
@@ -133,32 +148,32 @@ class handle_add_block extends handler {
             $this->error('empty blockname');
             $block = $DB->get_record('blocks', array('name' => $context->blockname));
             if (empty($block)) {
-                $this->error('this block type is not installed');
+                $this->error("Check add block : block type {$context->blockname} is not installed");
             }
             if (!$block->visible) {
-                $this->error('This block type is not exnabled ');
+                $this->error("Check add block : Block type {$context->blockname} is not enabled ");
             }
         }
 
-        if ($context->blockcourseid == 'current') {
-            $context->blockcourseid = $context->courseid;
-        }
-
-        if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
-            $this->error('Missing target course for block insertion');
+        if ($context->blockcourseid != 'current') {
+            if (!$this->is_runtime($context->blockcourseid)) {
+                if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
+                    $this->error("Check add block : Missing target course {$context->blockcourseid} for block insertion");
+                }
+            }
         }
 
         // Add more controls on params, location and region names.
         if (!empty($context->position)) {
             if (!in_array($context->position, array('last', 'first'))) {
                 if (!is_numeric($context->position)) {
-                    $this->error('Block position is invalid non numeric value.');
+                    $this->error("Check add block: Block position is invalid non numeric value.");
                 }
             }
         }
 
         // Resolve static theme application (course then category overrides).
-        if (!empty($context->location) && $course) {
+        if (!empty($context->location) && !empty($course)) {
 
             if (!in_array($context->location, array('left', 'right'))) {
                 if (empty($CFG->themeorder)) {
@@ -197,22 +212,18 @@ class handle_add_block extends handler {
                 try {
                     $themeconfig = \theme_config::load($theme);
                 } catch (\Exception $e) {
-                    $this->error('Something wrong in theme config. '.print_r($e, true));
+                    $this->error("Check add block : Something wrong in theme config. ".print_r($e, true));
                     return;
                 }
                 if (!$themeconfig) {
-                    $this->warn('undefined theme config. ');
+                    $this->warn("CHeck add block : undefined theme config. ");
                     return;
                 }
                 $layoutregions = $themeconfig->layouts['course']['regions'];
-                debug_trace("Theme regions $context->location in ". print_r($layoutregions, true));
                 if (!in_array($context->location, $layoutregions)) {
-                    debug_trace("Bad location");
-                    $this->error('Block location region '.$context->location.' name is unknown in the theme used in target course.');
+                    $this->error("Check add block : Block location region {$context->location} name is unknown in the theme used in target course.");
                 }
-                debug_trace("Location resolved");
             }
         }
     }
-
 }

@@ -25,15 +25,20 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
+use \context_course;
+use \StdClass;
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
 class handle_remove_block extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if ($context->blockcourseid == 'current') {
-            $parentcontext = \context_course::instance($context->courseid);
+            $parentcontext = context_course::instance($context->courseid);
+            $context->blockcourseid = $context->courseid;
         } else {
             $parentcontext = \context_course::instance($context->blockcourseid);
         }
@@ -45,29 +50,36 @@ class handle_remove_block extends handler {
                 blocks_delete_instance($instance);
             }
         }
+
+        return true;
     }
 
     public function check(&$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if (empty($context->blockname)) {
             $this->error('empty blockname');
-            $block = $DB->get_record('blocks', array('name' => $context->blockname));
+            $block = $DB->get_record('block', array('name' => $context->blockname));
             if (empty($block)) {
-                $this->error('block not installed');
+                $this->error('Remove block : Block not installed');
             }
             if (!$block->visible) {
-                $this->error('block not enabled');
+                $this->error('Remove block : Block not enabled');
             }
         }
 
-        if (empty($context->blockcourseid) && $context->blockcourseid != 'current') {
-            if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
-                $this->error('Target course '.$context->blockcourseid.' does not exist');
+        if (empty($context->blockcourseid)) {
+            $this->error('Check Remove Block : Empty course id');
+        }
+
+        if ($context->blockcourseid != 'current') {
+            if (!$this->is_runtime($context->blockcourseid)) {
+                if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
+                    $this->error('Remove block : Target course '.$context->blockcourseid.' does not exist');
+                }
             }
         }
     }
-
 }

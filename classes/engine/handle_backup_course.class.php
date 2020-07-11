@@ -22,22 +22,29 @@
  */
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
+use \backup;
+use \backup_controller;
+use \backup_plan_dbops;
+
 defined('MOODLE_INTERNAL') || die;
+require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 class handle_backup_course extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB, $CFG;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if ($context->backupcourseid == 'current') {
-            $courseid = $context->courseid;
-        } else {
-            $courseid = $context->backupcourseid;
+            $context->backupcourseid = $context->courseid;
         }
 
-        $course = $DB->get_record('course', array('id' => $courseid));
+        if (!$course = $DB->get_record('course', array('id' => $context->backupcourseid))) {
+            throw new execution_exception('Backup course Runtime : Backup target course does not exist');
+        }
 
         if ($context->target == 'publishflow') {
             // At the moment, try to avoid any output here.
@@ -47,28 +54,50 @@ class handle_backup_course extends handler {
             \backup_automation::remove_excess_publishflow_backups($course);
             ob_end_clean();
             $this->log('Course backup completed.');
+        // } else if ($context->target == 'course') {
+    } else {
+            // At the moment, course is the only alternative.
+            // Make a backup with potentiential options.
+            // Uses the default backup options in moodle course admin.
+            $admin = get_admin();
+
+            $bc = new backup_controller(backup::TYPE_1COURSE, $course->id, backup::FORMAT_MOODLE,
+                                        backup::INTERACTIVE_NO, backup::MODE_GENERAL, $admin->id);
+            // Set the default filename.
+            $format = $bc->get_format();
+            $type = $bc->get_type();
+            $id = $bc->get_id();
+            $users = $bc->get_plan()->get_setting('users')->get_value();
+            $anonymised = $bc->get_plan()->get_setting('anonymize')->get_value();
+            $filename = backup_plan_dbops::get_default_backup_filename($format, $type, $id, $users, $anonymised);
+            $bc->get_plan()->get_setting('filename')->set_value($filename);
+
+            // Execution.
+            $bc->execute_plan();
+            $bc->destroy();
         }
+
+        return true;
     }
 
     public function check(&$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if (empty($context->backupcourseid)) {
-            $this->error('Empty backup course id');
+            $this->error('Check Backup course : Empty backup course id');
         }
 
         if ($context->backupcourseid != 'current') {
-            if (!is_numeric($context->backupcourseid)) {
-                $this->error('Backup target id is not a number');
+            if (!$this->is_runtime($context->backupcourseid)) {
+                if (!is_numeric($context->backupcourseid)) {
+                    $this->error('Backup course : Backup target id is not a number');
+                }
+                if (!$course = $DB->get_record('course', array('id' => $context->backupcourseid))) {
+                    $this->error('Backup course : Target course does not exist');
+                }
             }
-        } else {
-            $context->backupcourseid = $context->courseid;
-        }
-
-        if (!$course = $DB->get_record('course', array('id' => $context->backupcourseid))) {
-            $this->error('Backup target course does not exist');
         }
     }
 }

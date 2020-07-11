@@ -30,6 +30,7 @@ define('PROCESSING_RUNNING', 2);
 function local_moodlescript_load_engine() {
     global $CFG;
 
+    include_once($CFG->dirroot.'/local/moodlescript/classes/engine/parser.class.php');
     include_once($CFG->dirroot.'/local/moodlescript/classes/engine/handler_base.class.php');
     include_once($CFG->dirroot.'/local/moodlescript/classes/engine/tokenizer.class.php');
 
@@ -44,4 +45,63 @@ function local_moodlescript_load_engine() {
     foreach ($parsers as $prsfile) {
         include_once($prsfile);
     }
+}
+
+function local_moodlescript_get_engine($script) {
+    static $engineloaded = false;
+
+    if (!$engineloaded) {
+        local_moodlescript_load_engine();
+        $engineloaded = true;
+    }
+
+    return new \local_moodlescript\engine\parser($script);
+}
+
+function local_moodlescript_execute($parser, $globalcontext) {
+    global $CFG;
+    $stack = $parser->parse((array)$globalcontext);
+
+    if ($parser->has_errors()) {
+        if (function_exists('debug_trace')) {
+            if ($CFG->debug = DEBUG_DEVELOPER) {
+                debug_trace($CFG->wwwroot." Parsed trace : ".$parser->print_trace());
+            }
+            debug_trace($CFG->wwwroot." Parsed stack errors : ".$parser->print_errors());
+        }
+        $report = $parser->print_errors();
+        $report .= "\n".$parser->print_stack();
+        return $report;
+    }
+
+    if (function_exists('debug_trace')) {
+        debug_trace($CFG->wwwroot." Parsed stack :\n ".$parser->print_stack());
+    }
+
+    $result = $stack->check((array)$globalcontext);
+    if ($stack->has_errors()) {
+        if (function_exists('debug_trace')) {
+            if ($CFG->debug = DEBUG_DEVELOPER) {
+                debug_trace($CFG->wwwroot." Check warnings : ".$stack->print_log('warnings'));
+                debug_trace($CFG->wwwroot." Check errors : ".$stack->print_log('errors'));
+            }
+        }
+        return $stack->print_log('errors');
+    }
+
+    $result = $stack->execute((array)$globalcontext);
+
+    if (function_exists('debug_trace')) {
+        if ($stack->has_errors()) {
+            // If the engine is robust enough. There should be not...
+            debug_trace($CFG->wwwroot." Stack errors : ".$stack->print_log('warnings'));
+            debug_trace($CFG->wwwroot." Stack errors : ".$stack->print_log('errors'));
+        }
+    }
+    if (function_exists('debug_trace')) {
+        if ($CFG->debug = DEBUG_DEVELOPER) {
+            debug_trace($CFG->wwwroot." Stack execution log : ".$stack->print_log('log'));
+        }
+    }
+
 }

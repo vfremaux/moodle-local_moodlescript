@@ -23,24 +23,30 @@
 
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_move_role_assign extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
-        if (!$this->is_runtime($context->movecourseid)) {
-            if ($context->movecourseid == 'current') {
-                $context->movecourseid = $context->courseid;
-            }
-        } else {
+        if ($context->movecourseid == 'current') {
+            $context->movecourseid = $context->courseid;
+        }
+
+        if ($this->is_runtime($context->movecourseid)) {
             $identifier = new parse_identifier('course', $this->logger);
             $context->movecourseid = $identifier->parse($context->movecourseid);
         }
+
         $course = $DB->get_record('course', array('id' => $context->movecourseid));
+        if (!$course) {
+            throw new execution_exception('Runtime: Target course does not exist');
+        }
         $moodlecontext = context_course::instance($context->movecourseid);
 
         if ($context->scope == 'course') {
@@ -59,37 +65,37 @@ class handle_move_role_assign extends handler {
                 }
             }
 
-            $this->log('Moving role assignments in '.$course->id.' from role '.$context->rolefrom.' to '.$context->roleto);
+            $this->log('Move role assign : Moving assignments in '.$course->id.' from role '.$context->rolefrom.' to '.$context->roleto);
         } else {
             // Context is a single user.
             role_unassign($context->fromrole, $context->userid, $moodlecontext->id);
             role_assign($context->torole, $context->userid, $moodlecontext->id);
-            $this->log('Moving role assignment in '.$course->id.' from role '.$context->rolefrom.' to '.$context->roleto);
+            $this->log('Move role assign : Moving assignment in '.$course->id.' from role '.$context->rolefrom.' to '.$context->roleto);
         }
+        return true;
     }
 
     public function check(&$context, &$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if (!$this->is_runtime($context->movecourseid)) {
-            if ($context->movecourseid == 'current') {
-                $context->movecourseid = $context->courseid;
-            }
-            if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
-                $this->error('Target course does not exist');
+            if ($context->movecourseid != 'current') {
+                if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
+                    $this->error('Check Move role assign : Target course does not exist');
+                }
             }
         } else {
-            $this->warn('Course id is runtime and thus unchecked. It may fail on execution.');
+            $this->warn('Check Move role assign : Course id is runtime and thus unchecked. It may fail on execution.');
         }
 
         if (empty($context->rolefrom)) {
-            $this->error('Missing from role');
+            $this->error('Check Move role assign : Missing from role');
         }
 
         if (empty($context->roleto)) {
-            $this->error('Missing dest role');
+            $this->error('Check Move role assign : Missing dest role');
         }
 
     }

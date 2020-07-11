@@ -24,9 +24,11 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
+use \context_course;
+
 class handle_unassign_role extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
         $this->stack = $stack;
@@ -35,7 +37,16 @@ class handle_unassign_role extends handler {
             $context->rolecourseid = $context->courseid;
         }
 
-        $rolecontext = \context_course::instance($context->rolecourseid);
+        if ($this->is_runtime($context->rolecourseid)) {
+            $identifier = new \local_moodlescript\engine\parse_identifier('course', $this);
+            $context->rolecourseid = $identifier->parse($context->rolecourseid, 'shortname', 'runtime');
+        }
+
+        if (!$DB->record_exists('course', array('id' => $context->rolecourseid))) {
+            throw new execution_exception("Unassign Role : Course target {$context->rolecourseid} nor defined");
+        }
+
+        $rolecontext = context_course::instance($context->rolecourseid);
 
         $role = $DB->get_record('role', array('id' => $context->roleid));
 
@@ -43,7 +54,8 @@ class handle_unassign_role extends handler {
 
         $this->log('Role '.$role->shortname.' removed for user '.$context->userid.' in context of course '.$context->rolecourseid);
 
-        $result[] = 0;
+        $result = 0;
+        $results[] = $result;
         return $result;
     }
 
@@ -60,16 +72,24 @@ class handle_unassign_role extends handler {
             $this->error('Role '.$context->roleid.' as '.$context->rolename.' does not exist');
         }
 
-        if (empty($context->userid)) {
-            $this->error('missing user');
+        if (empty($context->unassignuserid)) {
+            $this->error('Check Unassign Role : Empty unassign userid ');
         }
 
-        if ($context->rolecourseid == 'current') {
-            $context->rolecourseid = $context->courseid;
+        if ($context->unassignuserid != 'current') {
+            if (!$this->is_runtime($context->unassignuserid)) {
+                if (!$user = $DB->get_record('user', array('id' => $context->unassignuserid))) {
+                    $this->error('Check Unassign Role : No such user id '.$context->unassignuserid);
+                }
+            }
         }
 
-        if (!$course = $DB->get_record('course', array('id' => $context->rolecourseid))) {
-            $this->error('Missing target course for role suppression');
+        if ($context->rolecourseid != 'current') {
+            if (!$this->is_runtime($context->rolecourseid)) {
+                if (!$course = $DB->get_record('course', array('id' => $context->rolecourseid))) {
+                    $this->error('Check Unassign Role : Missing target course for role suppression');
+                }
+            }
         }
     }
 }

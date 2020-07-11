@@ -16,6 +16,9 @@
 
 $string['pluginname'] = 'Moodle Script Engine';
 
+// Privacy.
+$string['privacy:metadata'] = 'The MoodleScript Local plugin does not store any personal data about any user.';
+
 $string['check'] = 'Check the script';
 $string['log'] = 'Execution log';
 $string['newscript'] = 'New script';
@@ -30,3 +33,5 @@ $string['step'] = 'Step';
 $string['trace'] = 'Trace';
 $string['validatescript'] = 'Validate the script';
 $string['validationresult'] = 'Result';
+$string['phppattern'] = 'Php Pattern';
+$string['stringsample'] = 'String sample';

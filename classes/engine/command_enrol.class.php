@@ -32,72 +32,20 @@ class command_enrol extends tokenizer {
      * Add keyword needs find what to add in the remainder
      */
     public function parse() {
-        global $USER;
+        global $USER, $CFG;
 
         $this->trace('   Start parse '.$this->remainder);
         $pattern1 = '/^'.tokenizer::IDENTIFIER.tokenizer::SP.'IN'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP.'(HAVING)?'.tokenizer::OPT_SP.'$/';
         $pattern2 = '/^'.tokenizer::IDENTIFIER.tokenizer::SP.'IN'.tokenizer::SP.tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
         $pattern2 .= 'AS'.tokenizer::SP.tokenizer::IDENTIFIER.'(?:\s+)?(USING)?(?:\s+)?'.tokenizer::OPT_TOKEN.tokenizer::OPT_SP.'$/';
 
-        if (preg_match($pattern1, $this->remainder, $matches)) {
+        if (preg_match($pattern2, $this->remainder, $matches)) {
 
-            $handler = new handle_enrol();
-
-            $context = new StdClass;
-            $haserrors = false;
-
-            $targetuser = $matches[1];
-            $identifier = new parse_identifier('user', $this->logger);
-            if ($targetuser == 'current') {
-                $context->userid = $USER->id;
-            } else {
-                $context->userid = $identifier->parse($targetuser);
-            }
-
-            if (empty($context->userid)) {
-                $this->error('Command_enrol: Unresolved target user (null)');
-                $haserrors = true;
-            }
-
-            $target = $matches[2];
-            $identifier = new parse_identifier('course', $this->logger);
-            if ($targetuser == 'current') {
-                $context->enrolcourseid = 'current';
-            } else {
-                $context->enrolcourseid = $identifier->parse($target);
-            }
-
-            if (empty($context->enrolcourseid)) {
-                $this->error('Command_enrol: Unresolved target course (null)');
-                $haserrors = true;
-            }
-
-            $this->parse_having($context);
-
-            if (!empty($context->params->role)) {
-                $identifier = new parse_identifier('role', $this->logger);
-                $context->roleid = $identifier->parse($context->params->role);
-                if (empty($context->roleid)) {
-                    $this->error('Command_enrol: Unresolved target course (null)');
-                    $haserrors = true;
+            if ($CFG->debug == DEBUG_DEVELOPER) {
+                if (function_exists('debug_trace')) {
+                    debug_trace('command_Enrol : pattern 2 matched');
                 }
             }
-
-            if (!empty($context->params->method)) {
-                $context->method = $context->params->method;
-            } else {
-                $context->method = 'manual';
-            }
-
-            if ($haserrors) {
-                $this->trace('   End parse +e');
-                return [null, null];
-            }
-
-            $this->trace('   End parse ++');
-            return [$handler, $context];
-
-        } else if (preg_match($pattern2, $this->remainder, $matches)) {
 
             $handler = new handle_enrol();
 
@@ -131,7 +79,7 @@ class command_enrol extends tokenizer {
             }
 
             $identifier = new parse_identifier('role', $this->logger);
-            $context->roleid = $identifier->parse($matches[3]);
+            $context->roleid = $identifier->parse($matches[3], 'shortname');
 
             if (empty($context->roleid)) {
                 $this->error('Command_enrol: Unresolved role (null)');
@@ -151,6 +99,70 @@ class command_enrol extends tokenizer {
 
             $this->trace('   End parse ++');
             return [$handler, $context];
+        } else if (preg_match($pattern1, $this->remainder, $matches)) {
+
+            if ($CFG->debug == DEBUG_DEVELOPER) {
+                if (function_exists('debug_trace')) {
+                    debug_trace('command_Enrol : pattern 1 matched');
+                }
+            }
+
+            $handler = new handle_enrol('ENROL '.$this->remainder);
+
+            $context = new StdClass;
+            $haserrors = false;
+
+            $targetuser = $matches[1];
+            $identifier = new parse_identifier('user', $this->logger);
+            if ($targetuser == 'current') {
+                $context->userid = $USER->id;
+            } else {
+                $context->userid = $identifier->parse($targetuser, 'username');
+            }
+
+            if (empty($context->userid)) {
+                $this->error('Command_enrol: Unresolved target user (null)');
+                $haserrors = true;
+            }
+
+            $target = $matches[2];
+            $identifier = new parse_identifier('course', $this->logger);
+            if ($targetuser == 'current') {
+                $context->enrolcourseid = 'current';
+            } else {
+                $context->enrolcourseid = $identifier->parse($target, 'shortname');
+            }
+
+            if (empty($context->enrolcourseid)) {
+                $this->error('Command_enrol: Unresolved target course (null)');
+                $haserrors = true;
+            }
+
+            $this->parse_having($context);
+
+            if (!empty($context->params->role)) {
+                $identifier = new parse_identifier('role', $this->logger);
+                $context->roleid = $identifier->parse($context->params->role, 'shortname');
+                if (empty($context->roleid)) {
+                    $this->error('Command_enrol: Unresolved target role');
+                    $haserrors = true;
+                }
+            }
+
+            if (!empty($context->params->method)) {
+                $context->method = $context->params->method;
+            } else {
+                $context->method = 'manual';
+            }
+
+            if ($haserrors) {
+                $this->trace('   End parse +e');
+                return [null, null];
+            }
+
+            $this->trace('   End parse ++');
+            return [$handler, $context];
+
         } else {
             $this->trace('   End parse --');
             return [null, null];

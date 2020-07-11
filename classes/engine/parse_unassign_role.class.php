@@ -39,6 +39,8 @@ class parse_unassign_role extends tokenizer {
      * Add keyword needs find what to add in the remainder
      */
     public function parse() {
+        global $USER;
+
         $this->trace('...Start parse ');
 
         $pattern = '/^';
@@ -63,12 +65,10 @@ class parse_unassign_role extends tokenizer {
                 $context->rolecourseid = $identifier->parse($target);
             }
 
-            $user = $matches[3];
-            $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
-            if ($user == 'current') {
-                $context->userid = $user;
-            } else {
-                $context->userid = $identifier->parse($user);
+            $targetuser = $matches[3];
+            if ($targetuser != 'current') {
+                $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
+                $context->unassignuserid = $identifier->parse($targetuser);
             }
 
             $this->trace('...End parse ++');

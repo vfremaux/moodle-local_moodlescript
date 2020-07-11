@@ -26,9 +26,22 @@ defined('MOODLE_INTERNAL') || die;
 
 abstract class handler {
 
+    /**
+     * A set of all the variables required by the execution handler, and global state of the stack
+     * context variables.
+     */
     protected $context;
 
+    /**
+     * The surrounding exectution stack.
+     */
     protected $stack;
+
+    protected $statement;
+
+    public function __construct($statement = '') {
+        $this->statement = $statement;
+    }
 
     /**
      * Executes the handler action.
@@ -36,12 +49,13 @@ abstract class handler {
      * @param objectref &$context the context for this handler execution instance
      * @param objectref &$logger a string array where to log any output
      */
-    abstract function execute($result, &$context, &$stack);
+    abstract function execute(&$results, &$context, &$stack);
 
     /**
      * Checks the validity of input context. Will fill the internal errorlog for the caller.
      * This might be used in a "check chain" when updating a script.
      * @param objectref &$context the context for this handler execution instance
+     * @param objectref &$stack the surrounding stack.
      */
     abstract function check(&$context, &$stack);
 
@@ -67,6 +81,13 @@ abstract class handler {
      * the log should report positive succeeded actions.
      */
     public function log($msg) {
+
+        if (empty($this->stack)) {
+            // Handler is executed directly. E.g. unit tests.
+            $this->stack = new stack();
+            $this->stack->register($this, $this->context);
+        }
+
         $this->stack->log($msg);
     }
 

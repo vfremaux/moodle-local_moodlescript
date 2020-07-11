@@ -30,3 +30,5 @@ $string['step'] = 'Etape ';
 $string['trace'] = 'Trace';
 $string['validatescript'] = 'Valider la syntaxe';
 $string['validationresult'] = 'Resultat';
+$string['phppattern'] = 'Pattern PHP à tester';
+$string['stringsample'] = 'Echantillon de valeur';

@@ -26,9 +26,9 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_echo extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if ($context->argument == 'GLOBALS') {
             $str = "GLOBALS:\n";
@@ -41,11 +41,12 @@ class handle_echo extends handler {
         }
 
         $this->log($context->argument);
+        return true;
     }
 
     public function check(&$context, &$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
 
         if (empty($context->argument)) {
             $this->error('Nothing to print');

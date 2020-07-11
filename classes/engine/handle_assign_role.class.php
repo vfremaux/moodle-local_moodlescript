@@ -22,12 +22,15 @@
  */
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+require_once($CFG->dirroot.'/lib/enrollib.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_assign_role extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $DB;
+    public function execute(&$results, &$context, &$stack) {
+        global $DB, $USER;
 
         $this->stack = $stack;
 
@@ -35,41 +38,68 @@ class handle_assign_role extends handler {
             $context->rolecourseid = $context->courseid;
         }
 
-        $rolecontext = \context_course::instance($context->rolecourseid);
-
-        $role = $DB->get_record('role', array('id' => $context->roleid));
-
-        $raid = role_assign($role->id, $context->userid, $rolecontext->id, '', 0, time());
-
-        $this->log('Role '.$role->shortname.' added for user '.$context->userid.' in context of course '.$context->rolecourseid);
-
-        $result[] = $raid;
-        return $result;
-    }
-
-    public function check(&$context, &$stack) {
-        global $DB, $CFG;
-
-        $this->stack = $stack;
-
-        if (empty($context->roleid)) {
-            $this->error('missing role '.$context->roleid);
-        }
-
-        if (!$role = $DB->get_record('role', array('id' => $context->roleid))) {
-            $this->error('Role id '.$context->roleid.' as '.$context->rolename.' does not exist');
-        }
-
-        if (empty($context->userid)) {
-            $this->error('missing user');
-        }
-
-        if ($context->rolecourseid == 'current') {
-            $context->rolecourseid = $context->courseid;
+        if ($context->assignuserid == 'current') {
+            if (!empty($context->userid)) {
+                $context->assignuserid = $context->userid;
+            } else {
+                $context->assignuserid = $USER->id;
+            }
         }
 
         if (!$course = $DB->get_record('course', array('id' => $context->rolecourseid))) {
-            $this->error('Missing target course for role addition');
+            throw new execution_exception('Assign role Runtime: Missing target course for role addition');
+        }
+
+        if (!$user = $DB->get_record('user', array('id' => $context->assignuserid))) {
+            throw new execution_exception('Assign role Runtime: Bad user id');
+        }
+
+        $rolecontext = \context_course::instance($course->id);
+
+        if (!$role = $DB->get_record('role', array('id' => $context->roleid))) {
+            throw new execution_exception('Assign role Runtime: Bad rol id');
+        }
+
+        debug_trace("Role assign {$role->id}, {$context->assignuserid}, {$rolecontext->id}");
+        $raid = role_assign($role->id, $context->assignuserid, $rolecontext->id, '', 0, time());
+        debug_trace("Post Role assign");
+
+        $this->log('Role '.$role->shortname.' added for user '.$context->assignuserid.' in context of course '.$context->rolecourseid);
+
+        if (is_null($results)) {
+            $results = array();
+        }
+        $results[] = $raid;
+    }
+
+    public function check(&$context, &$stack) {
+        global $DB;
+
+        $this->stack = $stack;
+        $this->context = $context;
+
+        if (empty($context->roleid)) {
+            $this->error('Check Assign role : Missing role '.$context->roleid);
+        }
+
+        if (!$role = $DB->get_record('role', array('id' => $context->roleid))) {
+            $this->error('Check Assign role : Role id '.$context->roleid.' as '.$context->rolename.' does not exist');
+        }
+
+        if (empty($context->assignuserid)) {
+            $this->error('Check Assign role : missing user');
+        }
+
+        if ($context->assignuserid != 'current') {
+            if (!$user = $DB->get_record('user', array('id' => $context->assignuserid))) {
+                $this->error('Check Assign role : Missing target user for role assignment');
+            }
+        }
+
+        if ($context->rolecourseid != 'current') {
+            if (!$course = $DB->get_record('course', array('id' => $context->rolecourseid))) {
+                $this->error('Assign role : Missing target course for role addition');
+            }
         }
     }
 }

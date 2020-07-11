@@ -25,7 +25,7 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die();
 
-use \stdclass;
+use \StdClass;
 
 /**
  * implements a posthandler stack to be executed after a deployment.
@@ -34,9 +34,32 @@ use \stdclass;
  */
 class stack {
 
+    /**
+     * A list of handlers to execute.
+     */
     protected $stack;
 
-    protected $contexts;
+    /**
+     * A list of contexts associated to each handler in the stack.
+     */
+    public $contexts;
+
+    /**
+     * the context values snapshot loaded at start of the stack execution.
+     * is modified by the handler returns, unless stack context is frozen..
+     */
+    protected $initialcontext;
+
+    /**
+     * the current context of the stack is initialized with the global context and
+     * is modified by the handler returns, unless stack context is frozen..
+     */
+    protected $currentcontext;
+
+    /**
+     * If context is frozen, individual handlers cannot change values in the current context.
+     */
+    protected $contextfrozen;
 
     protected $log;
     protected $errors;
@@ -48,7 +71,10 @@ class stack {
         $this->stack = array();
         $this->log = array();
         $this->errors = array();
+        $this->contexts = array();
         $this->warnings = array();
+        $this->initialcontext = new StdClass();
+        $this->currentcontext = new StdClass();
     }
 
     /**
@@ -62,13 +88,21 @@ class stack {
 
         $this->stack[] = $handler;
         $this->contexts[] = $context;
-        $this->logger = [];
+    }
+
+    public function reset_context() {
+        $this->currentcontext = $this->initialcontext;
+    }
+
+    public function update_current_context($key, $value) {
+        $this->currentcontext->$key = $value;
     }
 
     /**
      * Processes all the stack in order propagating a result object;
+     * @param object $globalcontext
      */
-    public function execute($globalcontext = null) {
+    public function execute(&$globalcontext) {
         global $CFG;
 
         if (function_exists('debug_trace')) {
@@ -77,13 +111,21 @@ class stack {
             }
         }
 
-        $result = null;
+        if (is_null($globalcontext)) {
+            // Initialize a blanck context object.
+            $globalcontext = new StdClass();
+        }
+
+        $this->initialcontext = $globalcontext;
+        $this->currentcontext = $globalcontext;
+
+        $results = array();
         if (!empty($this->stack)) {
+            $context = reset($this->contexts);
             foreach ($this->stack as $handler) {
-                $context = array_shift($this->contexts);
-                if (!empty($globalcontext)) {
-                    // Add/override with global context.
-                    foreach ($globalcontext as $key => $value) {
+                if (!empty($this->currentcontext)) {
+                    // Add/override with global/current context.
+                    foreach ($this->currentcontext as $key => $value) {
                         $context->$key = $value;
                     }
                 }
@@ -92,14 +134,16 @@ class stack {
                         debug_trace("Executing ".get_class($handler));
                     }
                 }
-                $result = $handler->execute($result, $context, $this);
+                $handler->execute($results, $context, $this);
+                $context = next($this->contexts);
             }
         }
-        return $result;
+        return $results;
     }
 
     /**
      * Processes all the stack in order propagating a result object;
+     * @param object $globalcontext
      */
     public function check($globalcontext = null) {
         global $CFG;
@@ -110,27 +154,38 @@ class stack {
             }
         }
 
-        if (!empty($this->stack)) {
-            $i = 0;
+        if (empty($globalcontext)) {
+            // Initialize a blanck context object.
+            $globalcontext = new StdClass;
+        }
 
+        $result = null;
+        if (!empty($this->stack)) {
+            $context = reset($this->contexts);
             foreach ($this->stack as $handler) {
-                $context = $this->contexts[$i];
                 if (!empty($globalcontext)) {
                     // Add/override with global context.
                     foreach ($globalcontext as $key => $value) {
                         $context->$key = $value;
                     }
                 }
-                // Collects all possible check results in errorlog.
                 if (function_exists('debug_trace')) {
                     if ($CFG->debug == DEBUG_DEVELOPER) {
-                        debug_trace("Checking ".get_class($handler));
+                        debug_trace("Checking ".get_class($handler)." With context:");
+                        debug_trace($context);
                     }
                 }
                 $handler->check($context, $this);
-                $i++;
+                $context = next($this->contexts);
             }
         }
+
+        if (function_exists('debug_trace')) {
+            if ($CFG->debug == DEBUG_DEVELOPER) {
+                debug_trace("Stack check finished.");
+            }
+        }
+
         return $this->has_errors();
     }
 
@@ -188,6 +243,10 @@ class stack {
                 $str .= get_class($stacktask)." (";
                 $context = $this->contexts[$i];
                 foreach ($context as $key => $value) {
+                    if (is_object($value) || is_array($value)) {
+                        // This are extra context items added from outside.
+                        continue;
+                    }
                     if ($key != 'params' && $key != 'options') {
                         $str .= "$key: $value, ";
                     } else if ($key == 'params') {
@@ -206,7 +265,7 @@ class stack {
                     }
                 }
                 $str .= ")\n";
-                $i ++;
+                $i++;
             }
         } else {
             return 'Empty stack.';
@@ -217,5 +276,17 @@ class stack {
 
     public function print_errors() {
         return implode("\n", $this->errors);
+    }
+
+    public function freeze() {
+        $this->contextfrozen = true;
+    }
+
+    public function unfreeze() {
+        $this->contextfrozen = false;
+    }
+
+    public function is_context_frozen() {
+        return $this->contextfrozen;
     }
 }

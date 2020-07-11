@@ -22,16 +22,18 @@
  */
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/lib/enrollib.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_enrol_method extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$context, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $this->context = $context;
 
         $plugin = enrol_get_plugin($context->method);
         if ($context->enrolcourseid == 'current') {
@@ -53,8 +55,14 @@ class handle_add_enrol_method extends handler {
             foreach ($context->params as $key => $value) {
                 $input[$attrmap[$key]] = $value;
             }
+        } else if ($context->method == 'meta') {
+            // Hardcoded well-known mapping.
+            $input['customint1'] = $context->params->supercourseid;
         } else {
-            // Direct straight mapping. May not be very comfortable for scripters.
+            /**
+             * Direct straight mapping. May not be very comfortable for scripters as
+             * they will have to know the mapping of generic attributs such as customint1 customint2 etc.
+             */
             $input = (array)$context->params;
         }
 
@@ -65,17 +73,26 @@ class handle_add_enrol_method extends handler {
     public function check(&$context, &$stack) {
         global $DB;
 
-        // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        // Pass incoming context to internals. Some calls may use them.
+        $this->stack = $stack;
+        $this->context = $context;
 
         if (empty($context->method)) {
-            $this->error('empty method');
+            $this->error('Add enrol method : Empty method name');
         }
 
         $plugin = enrol_get_plugin($context->method);
         if (empty($plugin)) {
-            $this->error('unkown enrol method');
+            $this->error('Add enrol method : Unkown enrol method');
+        }
+
+        if (function_exists('debug_trace')) {
+            debug_trace("Check enrolcourseid");
+        }
+        if ($context->enrolcourseid != 'current') {
+            if (!$course = $DB->get_record('course', array('id' => $context->enrolcourseid))) {
+                $this->error("Add enrol method : Enrol Course {$context->enrolcourseid} does not exist");
+            }
         }
 
         // Check attributes map if exists in plugin.
@@ -97,5 +114,4 @@ class handle_add_enrol_method extends handler {
             }
         }
     }
-
 }
