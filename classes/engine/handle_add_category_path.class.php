@@ -26,7 +26,6 @@ defined('MOODLE_INTERNAL') || die;
 
 use \StdClass;
 use \core_course_category;
-require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
 
 class handle_add_category_path extends handler {
 
@@ -46,7 +45,7 @@ class handle_add_category_path extends handler {
             $context->parentcategoryid = $context->categoryid;
             if ($context->parentcategoryid) {
                 if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
-                    throw new execution_exception('Add category path Runtime : Parent category does not exist');
+                    $this->error('Add category path Runtime : Parent category does not exist');
                     return;
                 }
             }
@@ -101,23 +100,17 @@ class handle_add_category_path extends handler {
     public function check(&$context, &$stack) {
         global $DB;
 
-        // Pass incoming context to internals.
-        $this->stack = $stack;
-        $this->context = $context;
-
         if (empty($context->path)) {
-            $this->error('Check Add Category Path : Empty paths not allowed');
+            $this->error('Add category path : Empty paths not allowed');
         }
 
         if (!isset($context->parentcategoryid)) {
             $context->parentcategoryid = 0;
-            $this->warning('Check Add Category Path : Parent category defaults to 0');
+            $this->warning('Add category path : Parent category defaults to 0');
         } else {
             if ($context->parentcategoryid != 'current') {
-                if (!$this->is_runtime($context->parentcategoryid)) {
-                    if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
-                        $this->error('Check Add Category Path : Parent category does not exist');
-                    }
+                if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
+                    $this->error('Add category path : Parent category does not exist');
                 }
             }
         }
@@ -148,5 +141,9 @@ class handle_add_category_path extends handler {
         );
 
         $this->check_context_attributes($attrdesc);
+
+        // Pass incoming context to internals.
+        $this->stack = $stack;
+        $this->context = $context;
     }
 }

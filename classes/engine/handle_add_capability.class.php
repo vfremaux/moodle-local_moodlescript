@@ -24,9 +24,6 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
-use \context;
-use \context_system;
-
 class handle_add_capability extends handler {
 
     public function execute(&$results, &$context, &$stack) {
@@ -65,9 +62,9 @@ class handle_add_capability extends handler {
         }
 
         if (empty($context->params->contextid)) {
-            $capcontext = context_system::instance();
+            $capcontext = \context_system::instance();
         } else {
-            $capcontext = context::instance_by_id($context->params->contextid);
+            $capcontext = \context::instance_by_id($context->params->contextid);
         }
 
         role_change_permission($context->roleid, $capcontext, $context->capability, $permission);

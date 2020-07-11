@@ -79,20 +79,20 @@ class handle_assign_role extends handler {
         $this->context = $context;
 
         if (empty($context->roleid)) {
-            $this->error('Check Assign role : Missing role '.$context->roleid);
+            $this->error('Assign role : Missing role '.$context->roleid);
         }
 
         if (!$role = $DB->get_record('role', array('id' => $context->roleid))) {
-            $this->error('Check Assign role : Role id '.$context->roleid.' as '.$context->rolename.' does not exist');
+            $this->error('Assign role : Role id '.$context->roleid.' as '.$context->rolename.' does not exist');
         }
 
         if (empty($context->assignuserid)) {
-            $this->error('Check Assign role : missing user');
+            $this->error('Assign role : missing user');
         }
 
         if ($context->assignuserid != 'current') {
             if (!$user = $DB->get_record('user', array('id' => $context->assignuserid))) {
-                $this->error('Check Assign role : Missing target user for role assignment');
+                $this->error('Assign role : Missing target user for role assignment');
             }
         }
 

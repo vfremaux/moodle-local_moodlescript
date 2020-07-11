@@ -96,12 +96,16 @@ class handle_add_enrol_method extends handler {
         }
 
         // Check attributes map if exists in plugin.
+        debug_trace("Up to check attributes in enrol plugin");
         if (method_exists($plugin, 'script_attributes')) {
             // Get plugin scriptdesc and check it.
             $attrmap = $plugin->script_attributes(false);
             $this->check_context_attributes($attrmap);
         }
 
+        if (function_exists('debug_trace')) {
+            debug_trace("Enrol method Pre script check");
+        }
         if (method_exists($plugin, 'script_check')) {
             // Invoke the specific plugin integrated contextual check.
             $plugin->script_check($this->context, $this);

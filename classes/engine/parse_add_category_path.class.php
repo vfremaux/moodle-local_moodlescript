@@ -35,7 +35,7 @@ class parse_add_category_path extends tokenizer {
         $this->trace('   Start parse : '.$this->remainder);
 
         $pattern = '/^';
-        $pattern .= tokenizer::QUOTED_EXT_IDENTIFIER.tokenizer::SP;
+        $pattern .= tokenizer::QUOTED_EXT_LITTERAL.tokenizer::SP;
         $pattern .= 'IN'.tokenizer::SP.tokenizer::IDENTIFIER.tokenizer::OPT_SP;
         $pattern .= '(IF NOT EXISTS)?'.tokenizer::OPT_SP;
         $pattern .= '(HAVING)?'.tokenizer::OPT_SP;

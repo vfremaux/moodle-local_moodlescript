@@ -27,6 +27,7 @@ defined('MOODLE_INTERNAL') || die;
 require_once($CFG->dirroot.'/user/lib.php');
 
 use \StdClass;
+use \Exception;
 
 class handle_delete_user extends handler {
 
@@ -52,7 +53,7 @@ class handle_delete_user extends handler {
         }
 
         if (!$user = $DB->get_record('user', array('id' => $context->userid))) {
-            $this->error('Check Delete User : No such user id '.$context->userid);
+            $this->error('No such user id '.$context->userid);
         }
 
     }

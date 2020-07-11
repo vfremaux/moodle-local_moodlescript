@@ -22,9 +22,9 @@
  */
 namespace local_moodlescript\engine;
 
-defined('MOODLE_INTERNAL') || die;
-
 require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
+defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_enrol_method extends handler {
 
@@ -36,9 +36,11 @@ class handle_remove_enrol_method extends handler {
             $context->enrolcourseid = $context->courseid;
         }
 
-        if ($this->is_runtime($context->enrolcourseid)) {
-            $identifier = new \local_moodlescript\engine\parse_identifier('course', $this);
-            $context->enrolcourseid = $identifier->parse($context->enrolcourseid, 'idnumber', 'runtime');
+        if ($this->dynamiccheckstatus < 0) {
+            $this->dynamic_check($context, $stack, array());
+            if ($this->stack->has_errors()) {
+                throw new execution_exception($this->stack->print_errors());
+            }
         }
 
         $plugin = enrol_get_plugin($context->method);
@@ -72,15 +74,24 @@ class handle_remove_enrol_method extends handler {
         $this->context = $context;
 
         if (empty($context->method)) {
-            $this->error('Check Remove Enrol Method : Missing enrol method for deletion');
+            $this->error('Remove enrol method : Missing enrol method for deletion');
         }
 
         if ($context->enrolcourseid != 'current') {
-            if (!$this->is_runtime($context->enrolcourseid)) {
-                if (!$DB->record_exists('course', array('id' => $context->enrolcourseid))) {
-                    $this->error('Check Remove Enrol Method : Target course does not exist');
-                }
+            if (!$DB->record_exists('course', array('id' => $context->enrolcourseid))) {
+                $this->error('Remove Enrol method : Target course does not exist');
             }
         }
+    }
+
+    public function dynamic_check(&$context, &$stack, $resolved) {
+        global $DB;
+
+        if (!$DB->record_exists('course', array('id' => $context->enrolcourseid))) {
+            $this->error('Remove enrol method : Target for current course '.$context->enrolcourseid.' does not exist');
+            return false;
+        }
+
+        $this->dynamiccheckstatus = 0;
     }
 }

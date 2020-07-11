@@ -66,7 +66,9 @@ class parse_unassign_role extends tokenizer {
             }
 
             $targetuser = $matches[3];
-            if ($targetuser != 'current') {
+            if ($targetuser == 'current') {
+                $context->unassignuserid = 'current';
+            } else {
                 $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
                 $context->unassignuserid = $identifier->parse($targetuser);
             }

@@ -34,12 +34,27 @@ class handle_enrol extends handler {
     public function execute(&$results, &$context, &$stack) {
         global $DB, $CFG;
 
+        if ( function_exists('debug_trace')) {
+            debug_trace("Enrol Handler input context");
+            debug_trace($context);
+        }
+
         $this->stack = $stack;
 
         if ($context->enrolcourseid == 'current') {
             $course = $DB->get_record('course', array('id' => $context->courseid));
         } else {
             $course = $DB->get_record('course', array('id' => $context->enrolcourseid));
+        }
+        if (!$course) {
+            throw new execution_exception('Enrol Runtime : Target course does not exist');
+        }
+
+        if ($this->dynamiccheckstatus < 0) {
+            $resolved = new StdClass;
+            $resolved->course = $course;
+            $this->dynamic_check($context, $stack, $resolved, true);
+            // TODO:  process error case
         }
 
         $enrolplugin = enrol_get_plugin($context->method);
@@ -57,6 +72,11 @@ class handle_enrol extends handler {
             $endtime = $context->params->endtime;
         }
 
+        if (function_exists('debug_trace')) {
+            debug_trace("Enrol handler - pre-enrol");
+            debug_trace($enrolplugin);
+        }
+
         if ($context->method == 'sync') {
             if (is_dir($CFG->dirroot.'/enrol/sync')) {
                 include_once($CFG->dirroot.'/enrol/sync/lib.php');
@@ -71,6 +91,10 @@ class handle_enrol extends handler {
             $params = array('userid' => $context->userid, 'enrolid' => $enrol->id);
             $result = $DB->get_field('user_enrolments', 'id', $params);
         }
+
+        if (function_exists('debug_trace')) {
+            debug_trace("Enrolled handler finished");
+        }
         $results[] = $result;
     }
 
@@ -81,37 +105,45 @@ class handle_enrol extends handler {
         $this->context = $context;
 
         if (empty($context->enrolcourseid)) {
-            $this->error('Check Enrol : Empty course id');
+            $this->error('Enrol : Empty course id');
         }
 
         if ($context->enrolcourseid != 'current') {
-            if (!$this->is_runtime($context->enrolcourseid)) {
-                if (!$course = $DB->record_exists('course', array('id' => $context->enrolcourseid))) {
-                    $this->error('Check Enrol : Target course does not exist');
-                }
+            if (!$course = $DB->record_exists('course', array('id' => $context->enrolcourseid))) {
+                $this->error('Enrol : Target course does not exist');
             }
         }
 
         if (!$role = $DB->record_exists('role', array('id' => $context->roleid))) {
-            $this->error('Check Enrol : Target role '.$context->roleid.' does not exist');
+            $this->error('Handle_enrol : Target role '.$context->roleid.' does not exist');
             $this->error('On : '.$this->statement);
         }
 
         if (empty($context->method)) {
-            $this->error(' Check Enrol : No enrol method');
+            $this->error('Enrol : No enrol method');
         }
 
         if (empty($context->userid)) {
-            $this->error('Check Enrol : Missing target user');
+            $this->error('Enrol : Missing target user');
         }
 
-        if (!empty($course) && !empty($context->method)) {
-            $course = $DB->get_record('course', array('id' => $context->enrolcourseid));
+    }
+
+    public function dynamic_check(&$context, &$stack, $resolved, $isruntime = false) {
+        global $DB;
+
+        if (!empty($context->method)) {
             $enrolplugin = enrol_get_plugin($context->method);
-            $params = array('enrol' => $context->method, 'courseid' => $course->id, 'status' => ENROL_INSTANCE_ENABLED);
+            $params = array('enrol' => $context->method, 'courseid' => $resolved->course->id, 'status' => ENROL_INSTANCE_ENABLED);
             if (!$enrols = $DB->get_records('enrol', $params)) {
-                $this->error('Check Enrol : No available '.$context->method.' enrol instances in course '.$course->id);
+                if ($isruntime) {
+                    throw new execution_exception('Enrol : No available '.$context->method.' enrol instances in course '.$resolved->course->id);
+                } else {
+                    $this->error('Enrol : No available '.$context->method.' enrol instances in course '.$resolved->course->id);
+                }
             }
         }
+
+        $this->dynamiccheckstatus = 0;
     }
 }

@@ -28,6 +28,7 @@ require_once($CFG->dirroot.'/group/lib.php');
 require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
 
 use \StdClass;
+use \Exception;
 
 class handle_add_grouping extends handler {
 
@@ -42,7 +43,7 @@ class handle_add_grouping extends handler {
             $context->groupingcourseid = $context->courseid;
         }
         if (!$course = $DB->get_record('course', array('id' => $context->groupingcourseid))) {
-            throw new execution_exception('Add Grouping Runtime: Missing target course for grouping addition');
+            throw new execution_exception('Runtime: Missing target course for grouping addition');
         }
 
         $grouping = new StdClass;
@@ -63,12 +64,12 @@ class handle_add_grouping extends handler {
 
         try {
             $grouping->id = groups_create_grouping($grouping);
-            $this->log("Add Grouping Runtime : Grouping {$grouping->name} added in course {$context->groupingcourseid}");
+            $this->log("Grouping {$grouping->name} added in course {$context->groupingcourseid}");
             $result = $grouping->id;
             $results[] = $result;
             return $result;
         } catch (Exception $e) {
-            $this->log("Add Grouping Runtime : Grouping creation error ".$e->get_message());
+            mtrace("Grouping creation error ".$e->get_message());
         }
 
         return false;
@@ -90,10 +91,8 @@ class handle_add_grouping extends handler {
         }
 
         if ($context->groupingcourseid != 'current') {
-            if (!$this->is_runtime($context->groupingcourseid)) {
-                if (!$course = $DB->get_record('course', array('id' => $context->groupingcourseid))) {
-                    $this->error('Missing target course for grouping addition');
-                }
+            if (!$course = $DB->get_record('course', array('id' => $context->groupingcourseid))) {
+                $this->error('Missing target course for grouping addition');
             }
         }
     }

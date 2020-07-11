@@ -22,10 +22,10 @@
  */
 namespace local_moodlescript\engine;
 
-defined('MOODLE_INTERNAL') || die;
-
 use \context;
 use \context_system;
+
+defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_capability extends handler {
 
@@ -66,22 +66,20 @@ class handle_remove_capability extends handler {
         }
 
         if (!$DB->get_record('capabilities', array('name' > $context->capability))) {
-            $this->error('Check Remove Capability : Unknown capability '.$context->capability);
+            $this->error('Unknown capability '.$context->capability);
         }
 
         if (empty($context->roleid)) {
             $this->error('empty roleid');
         }
 
-        if (!$this->is_runtime($context->roleid)) {
-            if (!$DB->get_record('role', array('roleid' > $context->roleid))) {
-                $this->error('Check Remove Capability : Unknown role ID '.$context->roleid);
-            }
+        if (!$DB->get_record('role', array('roleid' > $context->roleid))) {
+            $this->error('Unknown role ID '.$context->roleid);
         }
 
         if (!empty($context->params->contextid)) {
             if (!$DB->get_record('role', array('context' > $context->params->contextid))) {
-                $this->error('Check Remove Capability : Unknown context ID '.$context->params->contextid);
+                $this->error('Unknown context ID '.$context->params->contextid);
             }
         }
     }

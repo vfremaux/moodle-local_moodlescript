@@ -50,13 +50,22 @@ class handle_add_block extends handler {
             throw new execution_exception($this->stack->print_errors());
         }
 
-        $parentcontext = \context_course::instance($context->blockcourseid);
+        if (!empty($this->dynamiccheckstatus)) {
+            $resolved = new StdClass;
+            $resolved->course = $course;
+            $this->dynamic_check($context, $stack, $resolved);
+            if (!empty($stack->has_errors())) {
+                throw new execution_exception($this->stack->print_errors());
+            }
+        }
+
+        $parentcontext = context_course::instance($context->blockcourseid);
 
         // Check for unicity.
         if (!$blockinstance->instance_allow_multiple()) {
             $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontextid);
             if ($DB->get_record('block_instances', $params)) {
-                $this->error('Add Block runtime : Could not instanciate block '.$context->blockname.' because already one in course');
+                $this->error('Add block : Could not instanciate block '.$context->blockname.' because already one in course');
                 return false;
             }
         }
@@ -146,20 +155,19 @@ class handle_add_block extends handler {
 
         if (empty($context->blockname)) {
             $this->error('empty blockname');
-            $block = $DB->get_record('blocks', array('name' => $context->blockname));
-            if (empty($block)) {
-                $this->error("Check add block : block type {$context->blockname} is not installed");
-            }
-            if (!$block->visible) {
-                $this->error("Check add block : Block type {$context->blockname} is not enabled ");
-            }
+        }
+
+        $block = $DB->get_record('block', array('name' => $context->blockname));
+        if (empty($block)) {
+            $this->error('Add block : This block type is not installed');
+        }
+        if (!$block->visible) {
+            $this->error('Add block : This block type is not enabled ');
         }
 
         if ($context->blockcourseid != 'current') {
-            if (!$this->is_runtime($context->blockcourseid)) {
-                if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
-                    $this->error("Check add block : Missing target course {$context->blockcourseid} for block insertion");
-                }
+            if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
+                $this->error('Add block : Missing target course for block insertion');
             }
         }
 
@@ -167,13 +175,39 @@ class handle_add_block extends handler {
         if (!empty($context->position)) {
             if (!in_array($context->position, array('last', 'first'))) {
                 if (!is_numeric($context->position)) {
-                    $this->error("Check add block: Block position is invalid non numeric value.");
+                    $this->error('Add block : Block position is invalid non numeric value.');
                 }
             }
         }
 
+        if (!empty($course)) {
+            $resolved = new StdClass;
+            $resolved->course = $course;
+            $this->dynamic_check($context, $stack, $resolved);
+        }
+    }
+
+    /**
+     * All the checks that in some situation can only be done at execution time, usually
+     * because they are depending on dynamic setup of the execution context. Dynammic checks
+     * may though be called at check time, if the dynamic condition can be resolved and the
+     * whole check stack can be performed.
+     * Dynamic checks will mark a dynamiccheck status in the instance so execution phase can
+     * know it have been completed.
+     * @param objectref &$context the whole handler context
+     * @param objectref &$stack the current stack object
+     * @param object $resolved some objects issued from static checking that are needed by
+     * the dynamic resolution to complete checks. Content of this object is an agreement between
+     * check() and dynamic_check()
+     */
+    public function dynamic_check(&$context, &$stack, $resolved) {
+        global $CFG, $DB;
+
+        $course = $resolved->course;
+
         // Resolve static theme application (course then category overrides).
-        if (!empty($context->location) && !empty($course)) {
+        // Only if course is statically resolved.
+        if (!empty($context->location) && $course) {
 
             if (!in_array($context->location, array('left', 'right'))) {
                 if (empty($CFG->themeorder)) {
@@ -212,18 +246,24 @@ class handle_add_block extends handler {
                 try {
                     $themeconfig = \theme_config::load($theme);
                 } catch (\Exception $e) {
-                    $this->error("Check add block : Something wrong in theme config. ".print_r($e, true));
+                    $this->error('Add block : Something wrong in theme config. '.print_r($e, true));
                     return;
                 }
                 if (!$themeconfig) {
-                    $this->warn("CHeck add block : undefined theme config. ");
+                    $this->warn('Add block : undefined theme config. ');
                     return;
                 }
                 $layoutregions = $themeconfig->layouts['course']['regions'];
+                debug_trace("Theme regions $context->location in ". print_r($layoutregions, true));
                 if (!in_array($context->location, $layoutregions)) {
-                    $this->error("Check add block : Block location region {$context->location} name is unknown in the theme used in target course.");
+                    debug_trace("Bad location");
+                    $this->error('Add block : Block location region '.$context->location.' name is unknown in the theme used in target course.');
+                    return;
                 }
+                debug_trace("Location resolved");
             }
         }
+
+        $this->dynamiccheckstatus = 0;
     }
 }

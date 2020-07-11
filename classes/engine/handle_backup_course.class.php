@@ -86,17 +86,15 @@ class handle_backup_course extends handler {
         $this->stack = $stack;
 
         if (empty($context->backupcourseid)) {
-            $this->error('Check Backup course : Empty backup course id');
+            $this->error('Backup course : Empty backup course id');
         }
 
         if ($context->backupcourseid != 'current') {
-            if (!$this->is_runtime($context->backupcourseid)) {
-                if (!is_numeric($context->backupcourseid)) {
-                    $this->error('Backup course : Backup target id is not a number');
-                }
-                if (!$course = $DB->get_record('course', array('id' => $context->backupcourseid))) {
-                    $this->error('Backup course : Target course does not exist');
-                }
+            if (!is_numeric($context->backupcourseid)) {
+                $this->error('Backup course : Backup target id is not a number');
+            }
+            if (!$course = $DB->get_record('course', array('id' => $context->backupcourseid))) {
+                $this->error('Backup course : Target course does not exist');
             }
         }
     }

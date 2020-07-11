@@ -57,12 +57,12 @@ class handle_move_course extends handler {
                 $this->log('Move course : Not moving course '.$course->id.' as category '.$context->coursecatid.' not found');
                 return;
             } else {
-                $this->error('Move Course Runtime : category '.$context->coursecatid.' not found');
+                $this->error('Move course : category '.$context->coursecatid.' not found');
                 return;
             }
         }
         $updatedcourse->category = $context->coursecatid;
-        $this->log('Move Course Runtime : Course '.$course->id.' to category '.$context->coursecatid);
+        $this->log('Move course : Course '.$course->id.' to category '.$context->coursecatid);
         update_course($updatedcourse);
 
         return true;
@@ -74,29 +74,27 @@ class handle_move_course extends handler {
         $this->stack = $stack;
 
         if ($context->movecourseid != 'current') {
-            if (!$this->is_runtime($context->movecourseid)) {
-                $context->movecourseid = $context->courseid;
-                if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
-                    $this->error('Move course : Target course does not exist');
-                }
+            $context->movecourseid = $context->courseid;
+            if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
+                $this->error('Move course : Target course does not exist');
             }
         }
 
         if (empty($context->coursecatid)) {
             if (empty($context->options->ifexists)) {
-                $this->error('Check Move Course : Missing or empty coursecat id');
+                $this->error('Move course : Missing or empty coursecat id');
             }
         }
 
         if (!$this->is_runtime($context->coursecatid) && empty($context->options->ifexists)) {
             if (!$DB->record_exists('course_categories', array('id' => $context->coursecatid))) {
-                $this->error('Check Move Course : Target course category does not exist');
+                $this->error('Move course : Target course category does not exist');
             }
         } else {
             if (empty($context->options->ifexists)) {
-                $this->warn('Check Move Course : Course category id is runtime and thus unchecked. It may fail on execution.');
+                $this->warn('Move course : Course category id is runtime and thus unchecked. It may fail on execution.');
             } else {
-                $this->warn('Check Move Course : Course category id is runtime and thus unchecked. It will not fail on execution.');
+                $this->warn('Move course : Course category id is runtime and thus unchecked. It will not fail on execution.');
             }
         }
     }

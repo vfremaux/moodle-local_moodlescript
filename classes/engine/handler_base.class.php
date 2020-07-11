@@ -39,8 +39,17 @@ abstract class handler {
 
     protected $statement;
 
+    /**
+     * Dynamic check status tracks if the dynamic part of the checks have been 
+     * already executed (at check time) or not. If dynamic_check() is implemented and
+     * is called at check time, checks completion should result in 0 in the status, and
+     * the error stack will be empty.
+     */
+    public $dynamiccheckstatus;
+
     public function __construct($statement = '') {
         $this->statement = $statement;
+        $this->dynamiccheckstatus = -1;
     }
 
     /**

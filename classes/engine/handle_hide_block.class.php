@@ -24,8 +24,6 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
-use \context_course;
-
 class handle_hide_block extends handler {
 
     /**
@@ -40,15 +38,8 @@ class handle_hide_block extends handler {
             $context->hidecourseid = $context->courseid;
         }
 
-        if ($this->is_runtime($context->hidecourseid)) {
-            $identifier = new parse_identifier('course', $this);
-            $context->hidecourseid = $identifier->parse($context->hidecourseid, 'shortname', 'runtime');
-        }
-
-        if (!$course = $DB->get_record('course', array('id' => $context->hidecourseid))) {
-            throw new execution_exception("Hide Block Runtime : Course {$context->hidecourseid} not found");
-        }
-        $parentcontext = context_course::instance($context->hidecourseid);
+        $parentcontext = \context_course::instance($context->hidecourseid);
+        $course = $DB->get_record('course', array('id' => $context->hidecourseid));
 
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
         $blockinstances = $DB->get_records('block_instances', $params);
@@ -90,15 +81,15 @@ class handle_hide_block extends handler {
         $this->stack = $stack;
 
         if (empty($context->blockname)) {
-            $this->error('Check Hide Block : Empty block name');
+            $this->error('Hide block : Empty block name');
         }
 
         $block = $DB->get_record('block', array('name' => $context->blockname));
         if (empty($block)) {
-            $this->error('Check Hide Block : Block is not installed');
+            $this->error('Hide block : Block is not installed');
         } else {
             if ($block->visible) {
-                $this->error('Check Hide Block : Block is not enabled');
+                $this->error('Hide block : Block is not enabled');
             }
         }
 
@@ -111,20 +102,20 @@ class handle_hide_block extends handler {
         }
 
         if (!is_numeric($context->hidecourseid)) {
-            $this->error('Check Hide Block : Target course id is not a number');
+            $this->error('Hide course : Target course id is not a number');
         }
 
         if (!$course = $DB->get_record('course', array('id' => $context->hidecourseid))) {
-            $this->error('Check Hide block : Target course does not exist');
+            $this->error('Hide course : Target course does not exist');
         }
 
         if ($course->format == 'page') {
             if (!empty($context->pageid)) {
                 if (!$page = $DB->get_record('format_page', array('id' => $context->pageid))) {
-                    $this->error('Check Hide Block : Target course page (page format) does not exist');
+                    $this->error('Hide block : Target course page (page format) does not exist');
                 } else {
                     if ($page->courseid != $course->id) {
-                        $this->error('Check Hide block : Target course page (page format) exists, but not in the required course');
+                        $this->error('Hide block : Target course page (page format) exists, but not in the required course');
                     }
                 }
             } else {

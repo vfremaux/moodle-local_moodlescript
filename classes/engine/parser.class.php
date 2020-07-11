@@ -170,7 +170,7 @@ class parser {
                 $this->trace('Parsed command '.$class);
                 $tokenizer = new $class($remainder, $this);
                 list ($handler, $context) = $tokenizer->parse($globalcontext);
-                $this->trace('');
+                $this->trace();
                 if (!empty($handler)) {
                     $this->stack->register($handler, $context);
                 }

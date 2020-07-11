@@ -64,7 +64,7 @@ class parse_add_category extends tokenizer {
 
         if (preg_match($pattern, trim($this->remainder), $matches)) {
 
-            $handler = new handle_add_category();
+            $handler = new \local_moodlescript\engine\handle_add_category();
             $context = new StdClass;
             $context->name = trim($matches[1]);
             $context->name = preg_replace('/^\'"|\'"$/', '', $context->name); // Unquote.
@@ -75,7 +75,7 @@ class parse_add_category extends tokenizer {
             $having = @$matches[4];
 
             if ($parenttarget != 'current') {
-                $identifier = new parse_identifier('course_categories', $this->parser);
+                $identifier = new \local_moodlescript\engine\parse_identifier('course_categories', $this->parser);
                 $context->parentcategoryid = $identifier->parse($parenttarget);
             } else {
                 $context->parentcategoryid = 'current';
@@ -83,7 +83,7 @@ class parse_add_category extends tokenizer {
             }
 
             if (!empty($having)) {
-                $having = new parse_having('', $this->parser);
+                $having = new \local_moodlescript\engine\parse_having('', $this->parser);
                 $params = $having->parse();
                 $context->params = $params;
             }
@@ -93,7 +93,7 @@ class parse_add_category extends tokenizer {
         } else if (preg_match($pattern2, trim($this->remainder), $matches)) {
             // Root category.
 
-            $handler = new handle_add_category();
+            $handler = new \local_moodlescript\engine\handle_add_category();
             $context = new StdClass;
             $context->name = trim($matches[1]);
             $context->name = preg_replace('/^\'"|\'"$/', '', $context->name); // Unquote.
@@ -105,7 +105,7 @@ class parse_add_category extends tokenizer {
             $context->parentcategoryid = 0;
 
             if (!empty($having)) {
-                $having = new parse_having('', $this->parser);
+                $having = new \local_moodlescript\engine\parse_having('', $this->parser);
                 $params = $having->parse();
                 $context->params = $params;
             }

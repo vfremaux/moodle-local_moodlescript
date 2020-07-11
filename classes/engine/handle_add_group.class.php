@@ -92,10 +92,8 @@ class handle_add_group extends handler {
         }
 
         if ($context->groupcourseid != 'current') {
-            if (!$this->is_runtime($context->groupcourseid)) {
-                if (!$course = $DB->get_record('course', array('id' => $context->groupcourseid))) {
-                    $this->error('Missing target course for group addition');
-                }
+            if (!$course = $DB->get_record('course', array('id' => $context->groupcourseid))) {
+                $this->error('Missing target course for group addition');
             }
         }
     }

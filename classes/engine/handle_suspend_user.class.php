@@ -27,6 +27,7 @@ defined('MOODLE_INTERNAL') || die;
 require_once($CFG->dirroot.'/user/lib.php');
 
 use \StdClass;
+use \Exception;
 
 class handle_suspend_user extends handler {
 
@@ -37,11 +38,6 @@ class handle_suspend_user extends handler {
 
         if ($context->suspenduserid == 'current') {
             $context->suspenduserid = $context->userid;
-        }
-
-        if ($this->is_runtime($context->suspenduserid)) {
-            $identifier = new parse_identifier('user', $this);
-            $context->suspenduserid = $identifier->parse($context->suspenduserid, 'idnumber', 'runtime');
         }
 
         $user = $DB->get_record('user', array('id' => $context->suspenduserid));
@@ -62,10 +58,8 @@ class handle_suspend_user extends handler {
         }
 
         if (empty($context->suspenduserid != 'current')) {
-            if (!$this->is_runtime($context->suspenduserid)) {
-                if (!$user = $DB->get_record('user', array('id' => $context->suspenduserid))) {
-                    $this->error('No such user id '.$context->suspenduserid);
-                }
+            if (!$user = $DB->get_record('user', array('id' => $context->suspenduserid))) {
+                $this->error('No such user id '.$context->suspenduserid);
             }
         }
     }

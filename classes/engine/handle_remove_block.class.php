@@ -23,11 +23,12 @@
 
 namespace local_moodlescript\engine;
 
-defined('MOODLE_INTERNAL') || die;
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
 
 use \context_course;
 use \StdClass;
-require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
+defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_block extends handler {
 
@@ -40,7 +41,15 @@ class handle_remove_block extends handler {
             $parentcontext = context_course::instance($context->courseid);
             $context->blockcourseid = $context->courseid;
         } else {
-            $parentcontext = \context_course::instance($context->blockcourseid);
+            $parentcontext = context_course::instance($context->blockcourseid);
+        }
+
+        if ($this->dynamiccheckstatus < 0) {
+            $resolved = new StdClass;
+            $this->dynamic_check($context, $stack, $resolved);
+            if ($this->stack->has_errors()) {
+                throw new execution_exception($this->stack->print_errors());
+            }
         }
 
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
@@ -70,16 +79,21 @@ class handle_remove_block extends handler {
             }
         }
 
-        if (empty($context->blockcourseid)) {
-            $this->error('Check Remove Block : Empty course id');
-        }
-
         if ($context->blockcourseid != 'current') {
-            if (!$this->is_runtime($context->blockcourseid)) {
-                if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
-                    $this->error('Remove block : Target course '.$context->blockcourseid.' does not exist');
-                }
+            if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
+                $this->error('Remove block : Target course '.$context->blockcourseid.' does not exist');
             }
         }
+    }
+
+    public function dynamic_check(&$context, &$stack, $resolved) {
+        global $DB;
+
+        if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
+            $this->error('Remove block : Target current course '.$context->blockcourseid.' does not exist');
+            return false;
+        }
+
+        $this->dynamiccheckstatus = 0;
     }
 }

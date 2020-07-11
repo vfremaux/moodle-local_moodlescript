@@ -60,7 +60,7 @@ class parse_identifier {
 
             if (empty($defaultkey)) {
                 if (!is_numeric($fqidentifier)) {
-                    $this->logger->log('Not numeric primary id on '.$this->table);
+                    $this->logger[] = 'Not numeric primary id on '.$this->table;
                     return;
                 }
 
@@ -74,7 +74,7 @@ class parse_identifier {
         $parts = explode(':', $fqidentifier);
 
         if (count($parts) == 1) {
-            $this->error('Single token for identifier '.$fqidentifier.'. 2 at least expected.', $step);
+            $this->logger->error('Single token for identifier '.$fqidentifier.'. 2 at least expected.');
             return;
         }
 
@@ -96,7 +96,7 @@ class parse_identifier {
             list($field, $mode, $identifier) = $parts;
         }
         if (count($parts) > 3) {
-            $this->error('Too many parts in '.$fqidentifier.'. 2 or 3 least expected.', $step);
+            $this->logger->error('Too many parts in '.$fqidentifier.'. 2 or 3 least expected.');
             return;
         }
 
@@ -111,7 +111,7 @@ class parse_identifier {
             $pluginpath = \core_component::get_component_directory($pluginname);
             if (!file_exists($pluginpath.'/locallib.php')) {
                 if (!file_exists($pluginpath.'/lib.php')) {
-                    $this->error('Library field not found in component '.$pluginname, $step);
+                    $this->logger->error('Library field not found in component '.$pluginname);
                     return null;
                 } else {
                     include_once($pluginpath.'/lib.php');
@@ -125,7 +125,7 @@ class parse_identifier {
 
             $fqfunc = str_replace('@', '_', $identifier);
             if (!function_exists($fqfunc)) {
-                $this->error('Required function '.$fqfunc.' not found', $step);
+                $this->logger->error('Required function '.$fqfunc.' not found');
                 return null;
             }
 
@@ -136,18 +136,18 @@ class parse_identifier {
         }
 
         if (empty($field)) {
-            $this->error('Identifier input error on field for '.$this->table.' in '.$fqidentifier, $step);
+            $this->logger->error('Identifier input error on field for '.$this->table.' in '.$fqidentifier);
             return;
         }
 
         if (empty($identifier)) {
-            $this->error('Identifier input error in value for '.$this->table.' in '.$fqidentifier, $step);
+            $this->logger->error('Identifier input error in value for '.$this->table.' in '.$fqidentifier);
             return;
         }
 
         $dbman = $DB->get_manager();
         if (!$dbman->field_exists($this->table, $field)) {
-            $this->error('Missing or unkown field '.$field.' in '.$this->table, $step);
+            $this->logger->error('Missing or unkown field '.$field.' in '.$this->table);
             return;
         }
 
@@ -163,24 +163,10 @@ class parse_identifier {
             }
             $id = $DB->get_field($this->table, 'id', $params);
         } catch (\Exception $e) {
-            $this->error('Identifier query error in '.$this->table.' by '.$field, $step);
+            $this->logger->error('Identifier query error in '.$this->table.' by '.$field);
             return;
         }
 
         return $id;
-    }
-
-    /*
-     * Local error dispatcher.
-     * @param string $msg
-     * @param string $step 'parse' or 'runtime' (occasionally 'check').
-     */
-    protected function error($msg, $step = 'parse') {
-        if ($step == 'runtime') {
-            // At run time, errors are usualy fatal.
-            throw new moodle_exception($msg);
-        }
-
-        $this->logger->error($msg);
     }
 }

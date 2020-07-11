@@ -57,32 +57,30 @@ class handle_show_block extends handler {
         $this->stack = $stack;
 
         if (empty($context->blockname)) {
-            $this->error('Check Show Block : Empty block name');
+            $this->error('Empty block name');
         }
 
         $block = $DB->get_record('block', array('name' => $context->blockname));
         if (empty($block)) {
-            $this->error('Check Show Block : Block is not installed');
+            $this->error('Block is not installed');
         } else {
             if ($block->visible) {
-                $this->error('Check Show Block : Block is not enabled');
+                $this->error('Block is not enabled');
             }
         }
 
         if (empty($context->showcourseid)) {
-            $this->error('Check Show Block : Empty course id');
+            $this->error('Empty course id');
         }
 
         if ($context->showcourseid != 'current') {
-            if (!$this->is_runtime($context->showcourseid)) {
-                if (!$course = $DB->get_record('course', array('id' => $context->showcourseid))) {
-                    $this->error('Check Show Block : Missing target course for block insertion');
-                }
+            if (!$course = $DB->get_record('course', array('id' => $context->showcourseid))) {
+                $this->error('Missing target course for block insertion');
             }
         }
 
         if (!is_numeric($context->showcourseid)) {
-            $this->error('Check Show Block : Target course id is not a number');
+            $this->error('Target course id is not a number');
         }
     }
 }

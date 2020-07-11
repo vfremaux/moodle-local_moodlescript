@@ -44,10 +44,6 @@ abstract class tokenizer {
     const OPT_NON_SPACE = '\\S*?';
     const ALPHANUM = '([a-zA-Z0-9]+)';
     const OPT_ALPHANUM = '([a-zA-Z0-9]*)';
-    const INTNUMBER = '([0-9]+)';
-    const OPT_INTNUMBER = '([0-9]*)';
-    const NUMBER = '([0-9.]+)';
-    const OPT_NUMBER = '([0-9.]*)';
     const TOKEN = '([a-zA-Z0-9_]+)';
     const OPT_TOKEN = '([a-zA-Z0-9_]*)';
     const IDENTIFIER = '([a-zA-Z0-9:_-]+)';
@@ -57,7 +53,7 @@ abstract class tokenizer {
     const QUOTED_EXT_LITTERAL = '("?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\'\\/ :_-]+?"?)';
     const OPT_QUOTED_EXT_LITTERAL = '("?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\'\\/ \:,_-]*?"?)';
     const QUOTED_EXT_IDENTIFIER = '([.,@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]+|[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\:_-]+?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\\/ \:_-]+?["\\\']?)';
-    const OPT_QUOTED_EXT_IDENTIFIER = '([.,@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]*|[a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ@\:_-]*?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\\/ \:_-]*?["\\\']?)';
+    const OPT_QUOTED_EXT_IDENTIFIER = '([.,@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ\\/\:_-]*|[a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ@\:_-]*?[\\\'"]?[@a-zA-Z0-9àéèüïäëöûîôêâËÄÜÏÖçêâûîÂÛÎÔÊ.,\\/ \:_-]*?["\\\']?)?';
 
     protected $remainder;
 
@@ -102,7 +98,7 @@ abstract class tokenizer {
 
     protected function parse_having($input, &$output) {
         if ($input) {
-            $having = new \local_moodlescript\engine\parse_having('', $this->parser);
+            $having = new \local_moodlescript\engine\parse_having('', $this->parser, $this->logger);
             if ($params = $having->parse()) {
                 /*
                 foreach ($params as $key => $value) {

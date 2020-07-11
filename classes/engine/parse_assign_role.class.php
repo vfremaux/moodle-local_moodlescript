@@ -58,7 +58,9 @@ class parse_assign_role extends tokenizer {
             $context->roleid = $identifier->parse('shortname:'.$context->rolename);
 
             $targetuser = $matches[2];
-            if ($targetuser != 'current') {
+            if ($targetuser == 'current') {
+                $context->assignuserid = $targetuser;
+            } else {
                 $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
                 $context->assignuserid = $identifier->parse($targetuser);
             }

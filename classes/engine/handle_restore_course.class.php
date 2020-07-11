@@ -174,47 +174,47 @@ class handle_restore_course extends handler {
 
         if (!empty($context->filepath)) {
             if (!file_exists($context->filepath)) {
-                $this->error('Check Restore Course : backup file not found');
+                $this->error('Restore backup file not found');
             }
 
             if (!is_readable($context->filepath)) {
-                $this->error('Check Restore Course : backup file not readable. this might be a permission issue.');
+                $this->error('Restore backup file not readable. this might be a permission issue.');
             }
 
             if (empty($context->restorecategoryid)) {
-                $this->error('Check Restore Course : category id must be provided');
+                $this->error('Restore category id must be provided');
             }
 
             if (!is_numeric($context->restorecategoryid)) {
-                $this->error('Check Restore Course : category id is not a number');
+                $this->error('Restore category id is not a number');
             }
         } else {
 
             if (empty($context->restorecourseid)) {
-                $this->error('Check Restore Course : Empty restore course id');
+                $this->error('Empty restore course id');
             }
 
             if (empty($context->source)) {
                 // Should not happen. Controlled in parser.
-                $this->error('Check Restore Course : Empty restore source');
+                $this->error('Empty restore source');
             }
 
             if ($context->source == 'publishflow')  {
                 if (!is_dir($CFG->dirroot.'/blocks/publishflow')) {
-                    $this->error('Check Restore Course : Publishflow not installed');
+                    $this->error('Publishflow not installed');
                 }
             }
 
             if ($context->restorecourseid != 'current') {
                 if (!is_numeric($context->restorecourseid)) {
-                    $this->error('Check Restore Course : source id is not a number');
+                    $this->error('Restore source id is not a number');
                 }
             } else {
                 $context->restorecourseid = $context->courseid;
             }
 
             if (!$course = $DB->get_record('course', array('id' => $context->restorecourseid))) {
-                $this->error('Check Restore Course : source course does not exist');
+                $this->error('Restore source course does not exist');
             }
 
             if (empty($context->categoryid)) {
@@ -224,7 +224,7 @@ class handle_restore_course extends handler {
 
             if ($context->restorecategoryid != 'current') {
                 if (!is_numeric($context->restorecategoryid)) {
-                    $this->error('Check Restore Course : category id is not a number');
+                    $this->error('Restore category id is not a number');
                 }
             } else {
                 $context->restorecategoryid = $context->categoryid;
@@ -235,7 +235,7 @@ class handle_restore_course extends handler {
         }
 
         if (!$category = $DB->get_record('course_categories', array('id' => $context->restorecategoryid))) {
-            $this->error('Check Restore Course : target category does not exist');
+            $this->error('Restore target category does not exist');
         }
     }
 }

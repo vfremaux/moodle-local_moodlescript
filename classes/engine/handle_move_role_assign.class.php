@@ -34,15 +34,14 @@ class handle_move_role_assign extends handler {
 
         $this->stack = $stack;
 
-        if ($context->movecourseid == 'current') {
-            $context->movecourseid = $context->courseid;
-        }
-
-        if ($this->is_runtime($context->movecourseid)) {
+        if (!$this->is_runtime($context->movecourseid)) {
+            if ($context->movecourseid == 'current') {
+                $context->movecourseid = $context->courseid;
+            }
+        } else {
             $identifier = new parse_identifier('course', $this->logger);
             $context->movecourseid = $identifier->parse($context->movecourseid);
         }
-
         $course = $DB->get_record('course', array('id' => $context->movecourseid));
         if (!$course) {
             throw new execution_exception('Runtime: Target course does not exist');
@@ -83,19 +82,19 @@ class handle_move_role_assign extends handler {
         if (!$this->is_runtime($context->movecourseid)) {
             if ($context->movecourseid != 'current') {
                 if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
-                    $this->error('Check Move role assign : Target course does not exist');
+                    $this->error('Move role assign : Target course does not exist');
                 }
             }
         } else {
-            $this->warn('Check Move role assign : Course id is runtime and thus unchecked. It may fail on execution.');
+            $this->warn('Move role assign : Course id is runtime and thus unchecked. It may fail on execution.');
         }
 
         if (empty($context->rolefrom)) {
-            $this->error('Check Move role assign : Missing from role');
+            $this->error('Move role assign : Missing from role');
         }
 
         if (empty($context->roleto)) {
-            $this->error('Check Move role assign : Missing dest role');
+            $this->error('Move role assign : Missing dest role');
         }
 
     }

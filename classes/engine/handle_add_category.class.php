@@ -26,7 +26,6 @@ defined('MOODLE_INTERNAL') || die;
 
 use \StdClass;
 use \core_course_category;
-require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
 
 class handle_add_category extends handler {
 
@@ -47,18 +46,6 @@ class handle_add_category extends handler {
             // If current has never been set in context, route to top category.
             $context->parentcategoryid = $context->categoryid;
         }
-
-        // check if runtime
-        if ($this->is_runtime($context->parentcategoryid)) {
-            $identifier = new \local_moodlescript\engine\parse_identifier('course_categories', $this);
-            $context->parentcategoryid = $identifier->parse($context->parentcategoryid, 'id', 'runtime');
-        }
-
-        // Finally check if everything is good.
-        if (!$DB->record_exists('course_categories', ['id' => $context->parentcategoryid])) {
-            throw new execution_exception("Add Category Runtime : Missing category {$context->parentcategoryid}");
-        }
-
         $catdata->parent = 0 + @$context->parentcategoryid;
         $catdata->name = $context->name;
         if (!empty($context->params)) {
@@ -107,24 +94,18 @@ class handle_add_category extends handler {
     public function check(&$context, &$stack) {
         global $DB;
 
-
-        // Pass inputs to internals.
-        $this->stack = $stack;
-        $this->context = $context;
-
         if (empty($context->name)) {
             $this->error('Add category path : Empty name not allowed');
         }
 
-        if (empty($context->parentcategoryid) && $context->parentcategoryid !== 0) {
-            $this->error('Missing parent category (can be 0)');
+        if (!isset($context->parentcategoryid)) {
+            $context->parentcategoryid = 0;
+            $this->warning('Add category path : Parent category defaults to 0');
         }
 
-        if ($context->parentcategoryid) {
-            if (!$this->is_runtime($context->parentcategoryid)) {
-                if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
-                    $this->error('Parent category does not exist');
-                }
+        if ($context->parentcategoryid != 'current') {
+            if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
+                $this->error('Add category path : Parent category does not exist');
             }
         }
 
@@ -153,5 +134,9 @@ class handle_add_category extends handler {
         );
 
         $this->check_context_attributes($attrdesc);
+
+        // Pass inputs to internals.
+        $this->stack = $stack;
+        $this->context = $context;
     }
 }
