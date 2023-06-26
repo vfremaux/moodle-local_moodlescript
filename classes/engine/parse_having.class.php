@@ -63,7 +63,8 @@ class parse_having extends tokenizer {
 
             $value = trim(implode(':', $parts)); // Get all value parts and remove outside whitespaces.
             $value = preg_replace('/^[\'"]|["\']$/', '', $value); // Unquote value.
-            $value = $this->parser->global_replace($value); // Make global context replacements on value.
+            // Obsolete : this collides with tokenize::resolve_variables();
+            // $value = $this->parser->global_replace($value); // Make global context replacements on value.
             $params->$key = $value;
         }
         return $params;

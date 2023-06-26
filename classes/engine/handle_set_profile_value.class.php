@@ -26,13 +26,23 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_set_profile_value extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB, $USER;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if ($context->setuserid == 'current') {
-            $context->setuserid = $context->userid;
+            if (isset($context->userid)) {
+                $context->setuserid = $context->userid;
+            } else {
+                $context->setuserid = $USER->id;
+            }
+        }
+
+        if (!$user = $DB->get_record('user', ['id' => $context->setuserid])) {
+            $this->error("Set profile value : Not existinct user {$context->setuserid} ");
+            return;
         }
 
         $data = $DB->get_record('user_info_data', array('fieldid' => $context->fieldid, 'userid' => $context->setuserid));
@@ -47,27 +57,37 @@ class handle_set_profile_value extends handler {
             $data->id = $DB->insert_record('user_info_data', $data);
         }
 
-        $result[] = $data->id;
-        return $result;
+        $results[] = $data->id;
+        return $data->id;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB, $CFG;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
-        if ($context->setuserid == 'current') {
-            $context->setuserid = $context->userid;
-        }
+        if (!$this->is_runtime($context->setuserid)) {
+            if ($context->setuserid == 'current') {
+                $setuserid = $context->userid;
+            } else {
+                $setuserid = $context->setuserid;
+            }
 
-        if (!$field = $DB->get_record('user', array('id' => $context->setuserid))) {
-            $this->error('User {$context->setuserid} not found. '.print_r($e, true));
-            return;
+            if (!$field = $DB->get_record('user', array('id' => $setuserid))) {
+                $this->error('User {$context->setuserid} not found. '.print_r($e, true));
+            }
+        } else {
+            $this->warn('Set profile value : User id is runtime and thus unchecked. It may fail on execution.');
         }
 
         if (!$field = $DB->get_record('user_info_field', array('id' => $context->profilefieldid))) {
             $this->error('Field $fieldid not found. '.print_r($e, true));
-            return;
         }
     }
 }

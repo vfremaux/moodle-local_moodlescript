@@ -31,31 +31,62 @@ use \Exception;
 
 class handle_suspend_user extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $DB, $CFG;
+    public function execute(&$results, &$stack) {
+        global $DB, $USER;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
-        $user = $DB->get_record('user', array('id' => $context->userid));
+        if ($context->suspenduserid == 'current') {
+            if (isset($context->userid)) {
+                $context->suspenduserid = $context->userid;
+            } else {
+                $context->suspenduserid = $USER->id;
+            }
+        }
+
+        if (!$user = $DB->get_record('user', array('id' => $context->suspenduserid))) {
+            $this->error("Suspend user : No existing user $context->suspenduserid ");
+            return;
+        }
         $user->suspended = 1;
         user_update_user($user, false, false);
 
-        $result[] = $user->id;
-        return $result;
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('userid', $user->id);
+        }
+
+        $results[] = $user->id;
+        return $user->id;
     }
 
-    public function check(&$context, &$stack) {
-        global $DB, $CFG;
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
+        global $DB;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
-        if (empty($context->userid)) {
-            $this->error('No userid');
+        if (empty($context->suspenduserid)) {
+            $this->error('Check Suspend User : No userid');
         }
 
-        if (!$user = $DB->get_record('user', array('id' => $context->userid))) {
-            $this->error('No such user id '.$context->userid);
-        }
+        if (!$this->is_runtime($context->suspenduserid)) {
+            if (empty($context->suspenduserid != 'current')) {
+                $suspenduserid = $context->suspenduserid;
+            } else {
+                $suspenduserid = $context->userid;
+            }
 
+            if (!$user = $DB->get_record('user', array('id' => $context->suspenduserid))) {
+                $this->error('Check Suspend User : No such user id '.$context->suspenduserid);
+            }
+        } else {
+            $this->warn('Check Suspend User : User id is runtime and thus unchecked. It may fail on execution.');
+        }
     }
 }

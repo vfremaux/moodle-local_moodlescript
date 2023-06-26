@@ -31,22 +31,29 @@ use \Exception;
 
 class handle_delete_user extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB, $CFG;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         $user = $DB->get_record('user', array('id' => $context->userid));
         user_delete_user($user);
 
-        $result[] = $user->id;
-        return $result;
+        $results[] = $user->id;
+        return $user->id;
     }
 
-    public function check(&$context, &$stack) {
-        global $DB, $CFG;
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
+        global $DB;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->userid)) {
             $this->error('No userid');

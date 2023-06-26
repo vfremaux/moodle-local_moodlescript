@@ -22,6 +22,8 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+
 defined('MOODLE_INTERNAL') || die;
 
 require_once($CFG->dirroot.'/local/moodlescript/classes/engine/parse_identifier.class.php');
@@ -44,6 +46,11 @@ class parser {
      * The script to parse (string)
      */
     public  $script;
+
+    /**
+     * Has script being parsed ? 
+     */
+    protected  $parsed;
 
     /**
      * A string array storing parsing errors.
@@ -79,19 +86,24 @@ class parser {
         'PROFILE VALUE' => 'PROFILE_VALUE',
     );
 
+    /**
+     * Builds a parser object with a script inside, ready to parse.
+     * @param string $script
+     */
     public function __construct($script) {
         global $CFG;
 
         $this->stack = new stack();
         $this->script = explode("\n", $script);
         $this->coderoot = $CFG->dirroot.'/local/moodlescript/classes/engine/';
+        $this->parsed = false;
 
         include_once($CFG->dirroot.'/local/moodlescript/classes/engine/handler_base.class.php');
 
         $this->trace("Loading handles");
         $globs = glob($CFG->dirroot.'/local/moodlescript/classes/engine/handle*');
         foreach ($globs as $glob) {
-            if ($CFG->debug = DEBUG_DEVELOPER) {
+            if ($CFG->debug == DEBUG_DEVELOPER && !defined('PHPUNIT_TEST')) {
                 $this->trace("...Loading handle ".$glob);
             }
             include_once($glob);
@@ -100,22 +112,45 @@ class parser {
         $this->trace("Loading parsers ");
         $globs = glob($CFG->dirroot.'/local/moodlescript/classes/engine/parse*');
         foreach ($globs as $glob) {
-            if ($CFG->debug = DEBUG_DEVELOPER) {
+            if ($CFG->debug == DEBUG_DEVELOPER && !defined('PHPUNIT_TEST')) {
                 $this->trace("...Loading parser ".$glob);
             }
             include_once($glob);
         }
     }
 
-    public function parse($globalcontext = array()) {
+    /**
+     * Public accessor.
+     */
+    public function get_context() {
+        return $this->context;
+    }
+
+    /**
+     * Main parsing scenario. Context starts as empty, or preloaded from an external provided globalcontext.
+     * @param object $globalcontext A data stub given at start of the parsing 
+     */
+    public function parse(StdClass $globalcontext) {
         global $CFG;
 
-        $this->context = $globalcontext;
+        if (!empty($this->parsed)) {
+            // This parser already has been parsed and has a stack ready to execute.
+            // Do not attempt to parse id gain as script has been consumed.
+            // If you need to reparse the same script with another input context, then consider building a new parser
+            // instance.
+            return $this->stack;
+        }
 
-        debug_trace('Parser starting');
-        $this->trace('Start parsing...');
+        if (is_null($globalcontext)) {
+            $this->context = new StdClass;
+        } else {
+            $this->context = $globalcontext;
+        }
+
+        $this->trace('Parser: Start parsing...');
         if (empty($this->script)) {
-            $this->trace('No script to process');
+            $this->trace('Parser: No script lines to process');
+            $this->debug($this->print_trace());
             return null;
         }
 
@@ -144,20 +179,19 @@ class parser {
 
                 $remainder = $this->global_replace($remainder);
                 if (is_null($remainder)) {
+                    $this->trace("Parser Exception: Empty arguments command $keyword found.");
+                    $this->debug($this->print_trace());
                     return null;
                 }
 
-                if ($CFG->debug == DEBUG_DEVELOPER) {
-                    if (function_exists('debug_trace')) {
-                        debug_trace('Parser Class: parsing script line (replaced) '.$keyword.' '.$remainder);
-                    }
-                }
+                $this->debug('Parser Class: parsing script line (replaced) '.$keyword.' '.$remainder);
 
                 $class = '\\local_moodlescript\\engine\\command_'.\core_text::strtolower(trim($keyword));
                 $classfile = 'command_'.\core_text::strtolower(trim($keyword));
 
                 if (!file_exists($this->coderoot.$classfile.'.class.php')) {
-                    $this->errorlog[] = 'invalid command '.$class;
+                    $this->errorlog[] = 'Parser Exception: invalid command '.$class;
+                    $this->debug('Parser Exception: invalid command '.$class);
                     return null;
                 }
                 include_once($this->coderoot.$classfile.'.class.php');
@@ -165,16 +199,27 @@ class parser {
                 $this->trace('Parsed command '.$class);
                 $tokenizer = new $class($remainder, $this);
                 list ($handler, $context) = $tokenizer->parse();
+                $this->trace("\n");
                 if (!empty($handler)) {
                     $this->stack->register($handler, $context);
                 }
             }
         }
-        $this->trace('End parsing...');
+        $this->trace('Parser: End parsing...');
+        $this->debug("Parse trace:\n".$this->print_trace());
+        $this->parsed = true;
         return $this->stack;
     }
 
     public function trace($msg) {
+        global $CFG;
+
+        if (!((defined('PHPUNIT_TEST') && PHPUNIT_TEST == true) || (defined('NO_DEBUG_DISPLAY') && NO_DEBUG_DISPLAY == true))) {
+            if ($CFG->debug >= DEBUG_DEVELOPER) {
+                echo $msg."\n";
+            }
+            return;
+        }
         $this->trace[] = $msg;
     }
 
@@ -191,6 +236,16 @@ class parser {
             return "No errors.\n";
         }
         return implode("\n", $this->errorlog);
+    }
+
+    public function debug($msg) {
+        global $CFG;
+
+        if ($CFG->debug == DEBUG_DEVELOPER) {
+            if (function_exists('debug_trace')) {
+                debug_trace($msg);
+            }
+        }
     }
 
     public function print_stack() {

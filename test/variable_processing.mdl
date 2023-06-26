@@ -1,0 +1,39 @@
+#
+# Test patterns with variables, variable settings
+#
+#
+
+SET VARIABLE var1 FROM "Value1"
+
+SET VARIABLE var2 FROM :var1
+
+SET VARIABLE var3 FROM Something that includes var1 as :var1
+
+SET VARIABLE var4 FROM "Quoted simple text"
+
+SET VARIABLE var5 FROM "Quoted version including :var1 somewhere else"
+
+ECHO Results
+
+ECHO :var1
+
+ECHO :var2
+
+ECHO :var3
+
+ECHO :var4
+
+ECHO :var5
+
+ECHO Direct echo of :var1, :var2
+
+SET MAPPING testmap HAVING
+key1: item 1
+key2: item 2
+key3: item 3
+
+ECHO :testmap[key2]
+
+ECHO {:testmap[key2]}
+
+ECHO Some string using key3 as {:testmap[key3]}

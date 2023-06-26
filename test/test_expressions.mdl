@@ -1,0 +1,13 @@
+# rules for expression tests : 1 col : 0 or 1 (expected result) | current username or * for any user | expression
+1 harry user:current:profile_field_pet = "Hedwig"
+0 hermione user:current:profile_field_pet = "Hedwig"
+1 harry user:idnumber:HP:profile_field_pet = "Hedwig"
+0 hermione user:idnumber:HG:profile_field_pet = "Hedwig"
+1 hermione user:idnumber:HG isincohort cohort:idnumber:G1
+1 harry user:current isincohort cohort:idnumber:"G1"
+1 draco user:current isincohort cohort:idnumber:"S1"
+0 draco user:current isincohort cohort:idnumber:"G1"
+1 harry user:current:profile_field_house = "Griffindor"
+0 * user:current:profile_field_house = "Griffindor" AND user:current:profile_field_house = "Slytherin"
+1 harry user:current:profile_field_house = "Griffindor" AND user:current hasrolein course:idnumber:"HEM1"
+1 * course:idnumber:"HEM1" isincategory category:idnumber:"Y1"

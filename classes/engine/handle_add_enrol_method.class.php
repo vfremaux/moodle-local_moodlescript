@@ -22,16 +22,18 @@
  */
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/lib/enrollib.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_enrol_method extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         $plugin = enrol_get_plugin($context->method);
         if ($context->enrolcourseid == 'current') {
@@ -53,49 +55,74 @@ class handle_add_enrol_method extends handler {
             foreach ($context->params as $key => $value) {
                 $input[$attrmap[$key]] = $value;
             }
+        } else if ($context->method == 'meta') {
+            // Hardcoded well-known mapping.
+            $input['customint1'] = $context->params->supercourseid;
         } else {
-            // Direct straight mapping. May not be very comfortable for scripters.
+            /**
+             * Direct straight mapping. May not be very comfortable for scripters as
+             * they will have to know the mapping of generic attributes such as customint1 customint2 etc.
+             */
             $input = (array)$context->params;
         }
 
         $plugin->add_instance($course, $input);
-        $this->log('Enrol instance of "'.$this->context->method.'" added to course '.$course->id);
+        $this->log('Add Enrol Method : Enrol instance of "'.$this->context->method.'" added to course '.$course->id);
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
-        // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        // Pass incoming context to internals. Some calls may use them.
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->method)) {
-            $this->error('empty method');
+            $this->error('Add enrol method : Empty method name');
         }
 
         $plugin = enrol_get_plugin($context->method);
         if (empty($plugin)) {
-            $this->error('unkown enrol method');
+            $this->error('Check Add enrol method : Unkown enrol method');
+        }
+
+        if (function_exists('debug_trace')) {
+            debug_trace("Check enrolcourseid");
+        }
+
+        if ($context->enrolcourseid != 'current') {
+            if (!$course = $DB->get_record('course', array('id' => $context->enrolcourseid))) {
+                $this->error("Check Add enrol method : Enrol Course {$context->enrolcourseid} does not exist");
+            }
         }
 
         // Check attributes map if exists in plugin.
+        debug_trace("Up to check attributes in enrol plugin");
         if (method_exists($plugin, 'script_attributes')) {
             // Get plugin scriptdesc and check it.
             $attrmap = $plugin->script_attributes(false);
             $this->check_context_attributes($attrmap);
         }
 
+        if (function_exists('debug_trace')) {
+            debug_trace("Check Add Enrol Method : Enrol method Pre script check");
+        }
+
         if (method_exists($plugin, 'script_check')) {
             // Invoke the specific plugin integrated contextual check.
-            $plugin->script_check($this->context, $this);
+            $plugin->script_check($context, $this);
         }
 
         if (isset($context->params->role)) {
             $role = $DB->get_record('role', array('shortname' => $context->params->role));
             if (empty($role)) {
-                $this->error('unkown role by shortname '.$context->params->role);
+                $this->error('Check Add Enrol Method : unkown role by shortname '.$context->params->role);
             }
         }
     }
-
 }

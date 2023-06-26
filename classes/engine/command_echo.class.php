@@ -39,7 +39,7 @@ class command_echo extends tokenizer {
 
         $handler = new handle_echo();
         $context = new \StdClass;
-        $context->argument = $this->remainder;
+        $context->argument = $this->resolve_variables($this->remainder);
 
         $this->trace('   End parse ++');
         return array($handler, $context);

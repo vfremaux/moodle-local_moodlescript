@@ -33,8 +33,12 @@ class parse_context {
     }
 
     /**
-     * Parses an context expressoin given as context:<level>:<id>
-     * @param string $fqidentifier Full qualified identifier
+     * Parses an context expression given as context:<level>:<id>.
+     * Some "runtime" expression as context:runtime:<level>:<id> will be resolved at runtime.
+     * Some context:func:<pluginname>@<funcname> will call that func in plugin's lib.php or locallib.php.
+     * @param string $fqcontext context token expression
+     * @param string $step the execution step, as 'parse' or 'runtime'
+     * @return string|int a numeric contextid or the original expression reprocessed for runtime.
      */
     public function parse($fqcontext, $step = 'parse') {
         global $DB, $CFG;

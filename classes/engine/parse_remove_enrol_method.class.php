@@ -58,7 +58,7 @@ class parse_remove_enrol_method extends tokenizer {
             }
 
             if (empty($target)) {
-                $this->errorlog[] = 'Empty course target for enrol method '.$context->method;
+                $this->errorlog[] = 'Remove enrol method : Empty course target for enrol method '.$context->method;
                 $this->trace('   End parse -e');
                 return [null, null];
             }

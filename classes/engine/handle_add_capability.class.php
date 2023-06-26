@@ -26,12 +26,12 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_add_capability extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->params->permission)) {
             $cappermission = 'allow';
@@ -71,21 +71,36 @@ class handle_add_capability extends handler {
         $role = $DB->get_record('role', array('id' => $context->roleid));
 
         $this->log('Capability "'.$context->capability.'" added to role '.$role->shortname.' with permission "'.$cappermission.'"');
+
+        return true;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary. Workable context is provided updated with whatever is resolvable by preceeding steps.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
-        // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->capability)) {
-            $this->error('empty capability');
+            $this->error('Add capability : empty capability');
+        }
+
+        if ($DB->record_exists('capabilities', ['name' => $context->capability])) {
+            $this->warn("Add capability : capability exists already. Will not be added.");
         }
 
         if (empty($context->roleid)) {
-            $this->error('empty roleid');
+            $this->error('Add capability : empty roleid');
+        }
+
+        // check if we really need this, parsing might have checked.
+        if (!$DB->record_exists('role', ['roleid' => $context->roleid])) {
+            $this->error("Add capability : capability exists already. Will not be added.");
         }
     }
 

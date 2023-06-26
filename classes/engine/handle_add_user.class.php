@@ -31,10 +31,13 @@ use \Exception;
 
 class handle_add_user extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $DB, $CFG;
+    protected $acceptedkeys = array('firstname', 'lastname', 'email', 'confirmed', 'policyagreed', 'suspended', 'country', 'city', 'auth', 'emailstop',
+                                'icq', 'skype', 'yahoo', 'msn', 'aim', 'phone2', 'phone2', 'institution', 'department', 'lang');
+
+    public function execute(&$results, &$stack) {
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         $user = new Stdclass;
         $user->username = $context->username;
@@ -42,7 +45,7 @@ class handle_add_user extends handler {
 
         // Transpose params.
         foreach ($context->params as $key => $value) {
-            if (in_array($key, $acceptedkeys)) {
+            if (in_array($key, $this->acceptedkeys)) {
                 $user->$key = $value;
             }
         }
@@ -50,17 +53,27 @@ class handle_add_user extends handler {
         try {
             $user->id = user_create_user($user, true, false);
         } catch (Exception $e) {
-            mtrace("User creation error ".$e->get_message());
+            $this->error("User creation error ".$e->get_message());
+            return null;
         }
 
-        $result[] = $user->id;
-        return $result;
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('userid', $user->id);
+        }
+
+        $results[] = $user->id;
+        return $user->id;
     }
 
-    public function check(&$context, &$stack) {
-        global $DB, $CFG;
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->username)) {
             $this->error('Username is empty');

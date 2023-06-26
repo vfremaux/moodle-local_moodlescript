@@ -23,19 +23,39 @@
 
 namespace local_moodlescript\engine;
 
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
+use \context_course;
+use \StdClass;
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_block extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $DB;
+    public function execute(&$results, &$stack) {
+        global $DB, $COURSE;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if ($context->blockcourseid == 'current') {
-            $parentcontext = \context_course::instance($context->courseid);
+            if (isset($context->courseid)) {
+                $parentcontext = context_course::instance($context->courseid);
+                $context->blockcourseid = $context->courseid;
+            } else {
+                $parentcontext = context_course::instance($COURSE->id);
+                $context->blockcourseid = $COURSE->id;
+            }
         } else {
-            $parentcontext = \context_course::instance($context->blockcourseid);
+            $parentcontext = context_course::instance($context->blockcourseid);
+        }
+
+        if ($this->dynamiccheckstatus < 0) {
+            $resolved = new StdClass;
+            $this->dynamic_check($context, $stack, $resolved);
+            if ($this->stack->has_errors()) {
+                throw new execution_exception($this->stack->print_errors());
+            }
         }
 
         $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontext->id);
@@ -45,29 +65,47 @@ class handle_remove_block extends handler {
                 blocks_delete_instance($instance);
             }
         }
+
+        return true;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->blockname)) {
             $this->error('empty blockname');
-            $block = $DB->get_record('blocks', array('name' => $context->blockname));
-            if (empty($block)) {
-                $this->error('block not installed');
-            }
-            if (!$block->visible) {
-                $this->error('block not enabled');
-            }
         }
 
-        if (empty($context->blockcourseid) && $context->blockcourseid != 'current') {
-            if (!$DB->get_record('course', array('id' => $context->blockcourseid))) {
-                $this->error('Target course '.$context->blockcourseid.' does not exist');
+        $block = $DB->get_record('block', array('name' => $context->blockname));
+        if (empty($block)) {
+            $this->error('Remove block : Block not installed');
+        }
+        if (!$block->visible) {
+            $this->error('Remove block : Block not enabled');
+        }
+
+        if ($context->blockcourseid == 'current') {
+            if (isset($context->courseid)) {
+                $blockcourseid = $context->courseid;
             }
+        } else {
+            $blockcourseid = $context->blockcourseid;
+        }
+
+        if (!$this->is_runtime($context->blockcourseid)) {
+            if (!$DB->get_record('course', array('id' => $blockcourseid))) {
+                $this->error('Remove block : Target course '.$context->blockcourseid.' does not exist');
+            }
+        } else {
+            $this->warn('Remove block : Course id is runtime and thus unchecked. It may fail on execution.');
         }
     }
-
 }

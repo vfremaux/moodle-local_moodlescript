@@ -80,3 +80,23 @@ idnumber: FU003
 email: eleve.trois@foo.com
 lang: en
 country: FR
+
+ADD GROUP "Groupe A" TO idnumber:NEWCOURSE IDENTIFIED BY GRP_A
+
+ADD GROUP "Groupe B" TO idnumber:NEWCOURSE HAVING
+idnumber: GRP_B
+description: Le groupe B
+
+ADD GROUPING "Groupement 1" TO idnumber:NEWCOURSE IDENTIFIED BY GRPING_1
+
+GROUP GROUP idnumber:GRP_A IN idnumber:GRPING_1 IN COURSE NEWCOURSE
+
+GROUP GROUP idnumber:GRP_B IN idnumber:GRPING_1 IN COURSE NEWCOURSE
+
+GROUP USER username:eleve001 IN idnumber:GRP_A IN COURSE NEWCOURSE
+
+GROUP USER username:eleve002 IN idnumber:GRP_A IN COURSE NEWCOURSE
+
+GROUP USER username:eleve002 IN idnumber:GRP_B IN COURSE NEWCOURSE
+
+GROUP USER username:eleve003 IN idnumber:GRP_B IN COURSE NEWCOURSE

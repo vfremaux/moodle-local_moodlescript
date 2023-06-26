@@ -22,18 +22,21 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_course extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $SESSION;
+    public function execute(&$results, &$stack) {
+        global $SESSION, $DB;
 
         $acceptedattrs = array('idnumber', 'visible', 'format', 'timestart');
 
         // TODO : convert input time format to unix timestamp.
 
         $this->stack = $stack;
+        $context= $this->stack->get_current_context();
 
         $courserec = new StdClass;
         $courserec->shortname = $context->shortname;
@@ -46,45 +49,59 @@ class handle_add_course extends handler {
         }
 
         // Aggregate params.
-        foreach ($context->params as $key => $value) {
-            if (in_array($key, $acceptedattrs)) {
-                $courserec->$key = $value;
+        if (!empty($context->params)) {
+            foreach ($context->params as $key => $value) {
+                if (in_array($key, $acceptedattrs)) {
+                    $courserec->$key = $value;
+                }
             }
         }
 
         $SESSION->nocoursetemplateautoenrol = true;
-        $newcourse = create_course($data);
+        if ($oldrec = $DB->get_record('course', ['shortname' => $courserec->shortname])) {
+            update_course($courserec);
+        } else {
+            $newcourse = create_course($courserec);
+        }
         $SESSION->nocoursetemplateautoenrol = false;
 
-        $result[] = $newcourse->id;
+        $results[] = $newcourse->id;
+
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('courseid', $newcourse->id);
+            $this->stack->update_current_context('coursecatid', $courserec->category);
+        }
+
         return $result;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->fullname)) {
-            $this->error('empty fullname');
+            $this->error('Add course : Empty fullname');
         }
 
         if (empty($context->shortname)) {
-            $this->error('empty shortname');
+            $this->error('Add course : Empty shortname');
         }
 
         if ($oldcourse = $DB->get_record('course', array('shortname' => $context->shortname))) {
-            $this->error('shortname already used');
+            $this->error('Add course : Shortname already used');
         }
 
-        if ($context->addcoursecatid == 'current') {
-            $context->addcoursecatid = $context->coursecatid;
+        if ($context->addcoursecatid != 'current') {
+            if (!$coursecat = $DB->get_record('course_categories', array('id' => $context->addcoursecatid))) {
+                $this->error('Add course : Missing target course category for course creation');
+            }
         }
-
-        if (!$coursecat = $DB->get_record('course_categories', array('id' => $context->addcoursecatid))) {
-            $this->error('Missing target course category for course creation');
-        }
-
     }
-
 }

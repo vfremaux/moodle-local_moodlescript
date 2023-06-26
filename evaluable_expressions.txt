@@ -1,0 +1,111 @@
+Evaluable expressions are expression that the moodlescript engine can determine a final runtime value
+and is composed of operators and value pointers or litterals. Value pointer are a way to find
+a single value in moodle, 
+
+Evaluable expression use engine current context for some value pointer references.
+Current context are internal object ids that are told to be the actual context of the engine. This
+will be addressed by the deictic exrpession 'current' in object refs.
+
+f.e. To address the visible state of the current course : 
+
+course:current:visible
+
+but, to adress the visible status of an identified course : 
+
+course:id:123:visible
+
+or the shortname of a course refered by its idnumber :
+
+course:idnumber:MYCOURSE_IDN:shortname
+
+Same with user f.e., say to get the department value of the current user :
+
+user:current:department
+
+First approach : pragmatically we referer in expressions "current" to the current moodle
+objects in session's context where the engine is run.
+
+course:current refers to $COURSE
+user:current refers to $USER
+
+by extension, other value pointer references can follow the same sheme : 
+
+category:current refers to the course category of $COURSE
+user_profile_field:current:<fieldname> refers to the profile field value of the field named 'fieldname' for $USER
+
+while 
+
+user_profile_field:idnumber:USER_2345:<fieldname> will refer to the profile field value of the field named 'fieldname' for user
+of idnumer USER_2345.
+
+Expression elements
+###################
+
+An evaluable expression is one or more elements separed with logical operators. Admitted operators are : 
+
+NOT (unary)
+AND, OR, XOR (binary)
+
+At the moment, only precedence of AND over OR and XOR is implemented. (No logical nesting complex expressions syntax provided).
+So examples of complete expressions can be : 
+
+elm
+NOT elm
+elm1 AND elm2
+elm1 AND NOT elm2
+NOT elm1 OR NOT elm2
+elm1 AND elm2 OR elm3 => (elm1 AND elm2) OR elm3
+elm1 OR elm2 AND elm3 => elm1 OR (elm2 AND elm3)
+elm1 XOR elm2
+etc.
+
+Element operators
+#################
+
+an element can be a set of two or thee terms :
+- operand operator operand
+or
+- operand operator (void)
+
+Recognized operators are : 
+
+= equals
+!= equals not
+~= matches
+< lower than (arithmetic)
+> higher than (arithmetic)
+<= lowerequals than (arithmetic)
+>= higherequals than (arithmetic)
+
+These operators deal with final attribute values.
+
+Other function-like operators can test some status over some data. Those operators
+essentially deal with object refs and not final attribute values.
+
+hasloggedin tests if the operand 1 (a user) has logged in moodle or in a particular course.
+Operand prototype : objectref<user> op objectref<course>|void
+
+isenrolledin tests if the operand 1 (a user) is enrolled in a course, or in one course in the category
+Operand prototype : objectref<user> op objectref<course|category>
+
+hasrolein tests if the operand 1 (a user) has a role (with or without enrolement) in one course, or on a course with a category
+Operand prototype : objectref<user> op objectref<course|category>
+
+hasgradesin tests if the operand 1 (a user) has been graded in one course, or on a course with a category
+Operand prototype : objectref<user> op objectref<course|category>
+
+isincohort tests if the operand 1 (a user) is member of the operand 2 (a cohort)
+Operand prototype : objectref<user> op objectref<cohort>
+
+hascompleted tests if the operand 1 (a user) has completed the operand 2 (as a course)
+Operand prototype : objectref<user> op objectref<course>
+
+isincategory tests if the operand 1 (a course) is in some course category
+Operand prototype : objectref<course> op objectref<category>
+
+isempty tests if the operand 1 is empty (means do not exist for a course or a user, or has no content for a course category, or a cohort)
+Operand prototype : objectref<category|course|cohort|user> op void
+
+isinsubs tests if the operand 1 (a course) is in the subtree of a pointed category
+Operand prototype : objectref<course|category> op objectref<category>
+

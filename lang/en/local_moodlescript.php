@@ -16,7 +16,12 @@
 
 $string['pluginname'] = 'Moodle Script Engine';
 
+// Privacy.
+$string['privacy:metadata'] = 'The MoodleScript Local plugin does not store any personal data about any user.';
+
 $string['check'] = 'Check the script';
+$string['dispconditionsetting'] = 'Display condition';
+$string['dispconditionsetting_desc'] = 'A moodlescript evaluable condition. If not empty and not matches, will not display this element';
 $string['log'] = 'Execution log';
 $string['newscript'] = 'New script';
 $string['noscript'] = 'No script';
@@ -30,3 +35,13 @@ $string['step'] = 'Step';
 $string['trace'] = 'Trace';
 $string['validatescript'] = 'Validate the script';
 $string['validationresult'] = 'Result';
+$string['phppattern'] = 'Php Pattern';
+$string['stringsample'] = 'String sample';
+$string['moodlescriptexpressions'] = 'Moodlescript expressions';
+$string['moodlescriptexpressions_help'] = 'Moodlescript expressions are logical expressions handled by the MoodleScript Engine. For a complete documentation on
+expression possibilities and syntax, refer to ; <a href="https://docs.activeprolearn.com/doku.php?id=local:moodlescript:expressionsyntaxspecification">Moodle script expressions syntax</a>';
+$string['configmissingvariableoutput'] = 'Missing variable output';
+$string['configmissingvariableoutput_desc'] = 'What to do when a variable is missing while replacing variable placeholders in strings. ';
+$string['blank'] = 'Blanks the variable placeholder';
+$string['ignored'] = 'Leaves the place holder unprocessed';
+$string['signalled'] = 'Replace the placeholder with a <:missing> signal';

@@ -28,6 +28,14 @@ use \StdClass;
 
 class parse_add_capability extends tokenizer {
 
+    public static $samples;
+
+    public function __construct($remainder, &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "ADD CAPABILITY <capablityname> IN <roleidentifier> HAVING\n";
+        self::$samples .= "permission: <permission>\n";
+    }
+
     /*
      * Add keyword needs find what to add in the remainder
      */

@@ -28,6 +28,14 @@ use \StdClass;
 
 class parse_move_course extends tokenizer {
 
+    public static $samples;
+
+    public function __construct($remainder, parser &$parser) {
+		parent::__construct($remainder, $parser);
+        self::$samples = "MOVE COURSE shortname:\"COURSE203\" TP idnumber:\"CAT2\"  \n\n";
+        self::$samples .= "MOVE COURSE shortname:\"COURSE203\" TP idnumber:\"CAT2\" IF EXISTS \n";
+    }
+
     /*
      * Add keyword needs find what to add in the remainder
      */
@@ -54,7 +62,7 @@ class parse_move_course extends tokenizer {
             }
 
             $identifier = new parse_identifier('course_categories', $this->logger);
-            $context->coursecatid = $identifier->parse($matches[2]);
+            $context->coursecatid = $identifier->parse($matches[2], 'idnumber');
 
             if (!empty($matches[3])) {
                 $context->options = new StdClass;

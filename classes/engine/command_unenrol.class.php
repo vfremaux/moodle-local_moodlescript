@@ -32,10 +32,22 @@ class command_unenrol extends tokenizer {
      * Add keyword needs find what to add in the remainder
      */
     public function parse() {
-        global $USER;
 
-        $this->trace('   Start parse '.$this->remainder);
-        if (preg_match('/^([a-zA-Z0-9:_-]+)\s+FROM\s+([a-z\:A-Z0-9_-]+)\s*(?:AS)?\s*([a-zA-Z_]+)?\s*$/', $this->remainder, $matches)) {
+        $this->trace('   Start parse UNENROL '.$this->remainder);
+
+        $pattern1 = '/^';
+        $pattern1 .= tokenizer::IDENTIFIER.tokenizer::SP;
+        $pattern1 .= 'FROM'.tokenizer::SP.tokenizer::IDENTIFIER.tokenizer::OPT_SP;
+        $pattern1 .= '(?:AS)?'.tokenizer::OPT_SP.tokenizer::OPT_TOKEN.tokenizer::OPT_SP;
+        $pattern1 .= '$/';
+
+        $pattern2 = '/^';
+        $pattern2 .= tokenizer::IDENTIFIER.tokenizer::SP;
+        $pattern2 .= 'FROM'.tokenizer::SP.tokenizer::IDENTIFIER.tokenizer::SP;
+        $pattern2 .= '(HAVING)'.tokenizer::OPT_SP;
+        $pattern2 .= '$/';
+
+        if (preg_match($pattern1, $this->remainder, $matches)) {
 
             $handler = new handle_unenrol();
 
@@ -44,9 +56,9 @@ class command_unenrol extends tokenizer {
             $targetuser = $matches[1];
             $identifier = new parse_identifier('user', $this->logger);
             if ($targetuser == 'current') {
-                $context->userid = $USER->id;
+                $context->unenroluserid = $targetuser;
             } else {
-                $context->userid = $identifier->parse($targetuser);
+                $context->unenroluserid = $identifier->parse($targetuser, 'username');
             }
 
             $target = $matches[2];
@@ -54,7 +66,7 @@ class command_unenrol extends tokenizer {
             if ($targetuser == 'current') {
                 $context->unenrolcourseid = 'current';
             } else {
-                $context->unenrolcourseid = $identifier->parse($target);
+                $context->unenrolcourseid = $identifier->parse($target, 'shortname');
             }
 
             if ($role = @$matches[3]) {
@@ -63,7 +75,7 @@ class command_unenrol extends tokenizer {
 
             $this->trace('   End parse ++');
             return [$handler, $context];
-        } else if (preg_match('/^([a-zA-Z0-9:_-]+)\s+FROM\s+([a-z\:A-Z0-9_-]+)\s*(HAVING)\s*$/', $this->remainder, $matches)) {
+        } else if (preg_match($pattern2, $this->remainder, $matches)) {
 
             $handler = new handle_unenrol();
 
@@ -72,9 +84,9 @@ class command_unenrol extends tokenizer {
             $targetuser = $matches[1];
             $identifier = new parse_identifier('user', $this->logger);
             if ($targetuser == 'current') {
-                $context->userid = $USER->id;
+                $context->unenroluserid = $targetuser;
             } else {
-                $context->userid = $identifier->parse($targetuser);
+                $context->unenroluserid = $identifier->parse($targetuser, 'username');
             }
 
             $target = $matches[2];
@@ -82,7 +94,7 @@ class command_unenrol extends tokenizer {
             if ($targetuser == 'current') {
                 $context->unenrolcourseid = 'current';
             } else {
-                $context->unenrolcourseid = $identifier->parse($target);
+                $context->unenrolcourseid = $identifier->parse($target, 'shortname');
             }
 
             $this->parse_having($matches[3], $context);

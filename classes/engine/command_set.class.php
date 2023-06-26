@@ -25,14 +25,14 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die();
 
-class command_list extends tokenizer {
+class command_set extends tokenizer {
 
     /*
      * Add keyword needs find what to add in the remainder
      */
     public function parse() {
         $this->trace('   Start parse set '.$this->remainder);
-        if (preg_match('/^(\w+)(\s+)?(.*)$/', trim($this->remainder), $matches)) {
+        if (preg_match('/^(\w+)\s+(.*)$/', trim($this->remainder), $matches)) {
             $class = '\\local_moodlescript\\engine\\parse_set_'.\core_text::strtolower(trim($matches[1]));
             $classfile = 'parse_set_'.\core_text::strtolower(trim($matches[1]));
 

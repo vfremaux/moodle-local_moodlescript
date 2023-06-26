@@ -30,7 +30,7 @@ class parse_assign_role extends tokenizer {
 
     public static $samples;
 
-    public function __construct($remainder, &$parser) {
+    public function __construct($remainder, parser &$parser) {
         parent::__construct($remainder, $parser);
         self::$samples = "ASSIGN ROLE <roleshortname> TO idnumber:<idnumber> IN idnumber:<courseidnum>\n";
     }
@@ -39,6 +39,8 @@ class parse_assign_role extends tokenizer {
      * Add keyword needs find what to add in the remainder
      */
     public function parse() {
+        global $USER;
+
         $this->trace('...Start parse ');
 
         $pattern = '/^';
@@ -53,21 +55,21 @@ class parse_assign_role extends tokenizer {
             $context = new StdClass;
             $context->rolename = $matches[1];
             $identifier = new \local_moodlescript\engine\parse_identifier('role', $this->logger);
-            $context->roleid = $identifier->parse('shortname:'.$context->rolename);
+            $context->roleid = $identifier->parse('shortname:'.$context->rolename, 'shortname');
 
-            $user = $matches[2];
-            $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
-            if ($user == 'current') {
-                $context->userid = $user;
+            $targetuser = $matches[2];
+            if ($targetuser == 'current') {
+                $context->assignuserid = $targetuser;
             } else {
-                $context->userid = $identifier->parse($user);
+                $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
+                $context->assignuserid = $identifier->parse($targetuser);
             }
 
             $target = $matches[3];
-            $identifier = new \local_moodlescript\engine\parse_identifier('course', $this->logger);
             if ($target == 'current') {
                 $context->rolecourseid = $target;
             } else {
+                $identifier = new \local_moodlescript\engine\parse_identifier('course', $this->logger);
                 $context->rolecourseid = $identifier->parse($target);
             }
 

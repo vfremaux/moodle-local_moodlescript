@@ -24,11 +24,24 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot.'/lib/coursecatlib.php');
-
 use \StdClass;
 
 class parse_add_category extends tokenizer {
+
+    public static $samples;
+
+    public function __construct($remainder, &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "ADD CATEGORY <categoryname> [IF NOT EXISTS] IN <parentcategoryidentifier> HAVING\n";
+        self::$samples .= "description: <description>\n";
+        self::$samples .= "idnumber: <idnumber>\n";
+        self::$samples .= "visible: <visible>\n\n";
+
+        self::$samples .= "ADD CATEGORY <rootcategoryname> [IF NOT EXISTS] HAVING\n";
+        self::$samples .= "description: <description>\n";
+        self::$samples .= "idnumber: <idnumber>\n";
+        self::$samples .= "visible: <visible>\n";
+    }
 
     /*
      * Add keyword needs find what to add in the remainder
@@ -51,7 +64,7 @@ class parse_add_category extends tokenizer {
 
         if (preg_match($pattern, trim($this->remainder), $matches)) {
 
-            $handler = new \local_moodlescript\engine\handle_add_category();
+            $handler = new handle_add_category();
             $context = new StdClass;
             $context->name = trim($matches[1]);
             $context->name = preg_replace('/^\'"|\'"$/', '', $context->name); // Unquote.
@@ -61,11 +74,16 @@ class parse_add_category extends tokenizer {
             $parenttarget = @$matches[3];
             $having = @$matches[4];
 
-            $identifier = new \local_moodlescript\engine\parse_identifier('course_categories', $this->parser);
-            $context->parentcategoryid = $identifier->parse($parenttarget);
+            if ($parenttarget != 'current') {
+                $identifier = new parse_identifier('course_categories', $this->parser);
+                $context->parentcategoryid = $identifier->parse($parenttarget);
+            } else {
+                $context->parentcategoryid = 'current';
+                /// Let pass without alteration. this should be overriden by global content.
+            }
 
             if (!empty($having)) {
-                $having = new \local_moodlescript\engine\parse_having('', $this->parser);
+                $having = new parse_having('', $this->parser);
                 $params = $having->parse();
                 $context->params = $params;
             }
@@ -75,7 +93,7 @@ class parse_add_category extends tokenizer {
         } else if (preg_match($pattern2, trim($this->remainder), $matches)) {
             // Root category.
 
-            $handler = new \local_moodlescript\engine\handle_add_category();
+            $handler = new handle_add_category();
             $context = new StdClass;
             $context->name = trim($matches[1]);
             $context->name = preg_replace('/^\'"|\'"$/', '', $context->name); // Unquote.
@@ -87,7 +105,7 @@ class parse_add_category extends tokenizer {
             $context->parentcategoryid = 0;
 
             if (!empty($having)) {
-                $having = new \local_moodlescript\engine\parse_having('', $this->parser);
+                $having = new parse_having('', $this->parser);
                 $params = $having->parse();
                 $context->params = $params;
             }

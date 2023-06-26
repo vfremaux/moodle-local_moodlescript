@@ -28,8 +28,22 @@ use \StdClass;
 
 class parse_add_enrol_method extends tokenizer {
 
+    public static $samples;
+
+    public function __construct($remainder, &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "ADD ENROL METHOD \"<method>\" TO \"<courseidentifier>\" HAVING\n";
+        self::$samples .= "role: student\n";
+        self::$samples .= "customint1: <value1>\n";
+        self::$samples .= "customint2: <value2>\n";
+
+        self::$samples = "\nADD ENROL METHOD meta TO \"<courseidentifier>\" HAVING\n";
+        self::$samples .= "role: student\n";
+        self::$samples .= "course: <courseidentifier>\n";
+    }
+
     /*
-     * Add keyword needs find what to add in the remainder
+     * Add keyword needs find what to add in the remainder.
      */
     public function parse() {
         global $CFG;
@@ -49,6 +63,7 @@ class parse_add_enrol_method extends tokenizer {
             $context->method = $matches[1];
 
             $target = $matches[2];
+
             $having = @$matches[3];
 
             if (!empty($having)) {
@@ -57,10 +72,20 @@ class parse_add_enrol_method extends tokenizer {
                 $context->params = $params;
             }
 
+            if ($context->method == 'meta') {
+                if (empty($context->params->supercourse)) {
+                    $this->errorlog[] = 'Missing "supercourse" reference for enrol method meta';
+                    $this->trace('   End parse -e');
+                    return [null, null];
+                }
+                $identifier = new \local_moodlescript\engine\parse_identifier('course', $this->parser);
+                $context->params->supercourseid = $identifier->parse($context->params->supercourse);
+            }
+
             if (empty($target)) {
                 $this->errorlog[] = 'Empty course target for enrol method '.$context->method;
                 $this->trace('   End parse -e');
-                return [null, null];
+                return array(null, null);
             }
 
             $identifier = new \local_moodlescript\engine\parse_identifier('course', $this->parser);
@@ -75,7 +100,7 @@ class parse_add_enrol_method extends tokenizer {
             return array($handler, $context);
         } else {
             $this->trace('   End parse --');
-            return [null, null];
+            return array(null, null);
         }
     }
 

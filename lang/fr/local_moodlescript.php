@@ -17,6 +17,8 @@
 $string['pluginname'] = 'MoodleScript (processeur)';
 
 $string['check'] = 'Vérification du script';
+$string['dispconditionsetting'] = 'Condition d\'affichage';
+$string['dispconditionsetting_desc'] = 'Une expression évaluable MoodleScript. Si elle est définie et est fausse, l\'élément ne s\'affichera pas.';
 $string['log'] = 'Journal d\'exécution';
 $string['newscript'] = 'Nouveau script';
 $string['noscript'] = 'Pas de script.';
@@ -30,3 +32,13 @@ $string['step'] = 'Etape ';
 $string['trace'] = 'Trace';
 $string['validatescript'] = 'Valider la syntaxe';
 $string['validationresult'] = 'Resultat';
+$string['phppattern'] = 'Pattern PHP à tester';
+$string['stringsample'] = 'Echantillon de valeur';
+$string['moodlescriptexpressions'] = 'Expressions evaluables Moodlescript';
+$string['moodlescriptexpressions_help'] = 'Les expressions Moodlescript sont des conditions logiques évaluables par le moteur MoodleScript. Pour une documentation complète
+sur les possibilités de syntaxe, voir ; <a href="https://docs.activeprolearn.com/doku.php?id=local:moodlescript:expressionsyntaxspecification">Syntaxe des expressions évaluables Moodlescript</a>';
+$string['configmissingvariableoutput'] = 'Remplacement de variables manquantes';
+$string['configmissingvariableoutput_desc'] = 'Définit le résultat du remplacement si une variable non définie est trouvée dans une chaîne examinée.';
+$string['blank'] = 'Remplace l\'appel de variable par une chaîne vide';
+$string['ignored'] = 'Laisse l\'appel de variable inchangé';
+$string['signalled'] = 'Remplace l\'appel de variable par un signal <:missing>';

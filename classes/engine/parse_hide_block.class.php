@@ -28,6 +28,14 @@ use \StdClass;
 
 class parse_hide_block extends tokenizer {
 
+	public static $samples;
+
+    public function __construct($reminder, parser &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "HIDE BLOCK latest_news IN shortname:\"COURSE_103\"\n";
+        self::$samples .= "HIDE BLOCK idnumber:\"B103_12\" (todo)\n";
+    }
+
     /*
      * Add keyword needs find what to add in the remainder
      */

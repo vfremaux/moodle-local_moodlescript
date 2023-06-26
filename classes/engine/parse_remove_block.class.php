@@ -28,6 +28,14 @@ use \StdClass;
 
 class parse_remove_block extends tokenizer {
 
+    public static $samples;
+
+    public function __construct($remainder, parser &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "REMOVE BLOCK latest_news FROM idnumber:\"C2022_203\"\n\n";
+        self::$samples = "REMOVE BLOCK idnumber:\"B203_34\"\n";
+    }
+
     /*
      * Add keyword needs find what to add in the remainder
      */

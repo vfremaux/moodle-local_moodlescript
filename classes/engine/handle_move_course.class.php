@@ -27,75 +27,97 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_move_course extends handler {
 
-    public function execute($result, &$context, &$stack) {
-        global $DB;
+    public function execute(&$results, &$stack) {
+        global $DB, $COURSE;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (!$this->is_runtime($context->movecourseid)) {
             if ($context->movecourseid == 'current') {
-                $context->movecourseid = $context->courseid;
+                if (isset($context->courseid)) {
+                    $context->movecourseid = $context->courseid;
+                } else {
+                    $context->movecourseid = $COURSE->id;
+                }
             }
         } else {
             $identifier = new parse_identifier('course', $this->logger);
             $context->movecourseid = $identifier->parse($context->movecourseid);
         }
-        $course = $DB->get_record('course', array('id' => $context->movecourseid));
+
+        if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
+            $this->error("Move course : Not existing course $context->movecourseid ");
+            return;
+        }
 
         // Update course cleanly, purging caches and making all required fixes everywhere.
         $updatedcourse = new \StdClass;
         $updatedcourse->id = $course->id;
 
         if ($this->is_runtime($context->coursecatid)) {
+            // We admit the category might be resolved at runtime as result of a previous instruction.
             $identifier = new parse_identifier('course_categories', $this->logger);
-            $context->coursecatid = $identifier->parse($context->coursecatid, 'runtime');
+            $context->coursecatid = $identifier->parse($context->coursecatid, '', 'runtime');
         }
 
         if (empty($context->coursecatid)) {
-            if (!empty($context->config->ifexists)) {
-                $this->log('Not moving course '.$course->id.' as category not found');
+            if (!empty($context->options->ifexists)) {
+                $this->log('Move course : Not moving course '.$course->id.' as category '.$context->coursecatid.' not found');
                 return;
             } else {
-                $this->error('Error: category not found');
+                $this->error('Move course : category '.$context->coursecatid.' not found');
                 return;
             }
         }
         $updatedcourse->category = $context->coursecatid;
-        $this->log('Moving course '.$course->id.' to category '.$context->coursecatid);
+        $this->log('Move course : Course '.$course->id.' to category '.$context->coursecatid);
         update_course($updatedcourse);
+
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('courseid', $course->id);
+            $this->stack->update_current_context('coursecatid', $updatedcourse->category);
+        }
+
+        return true;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
-        if (!$this->is_runtime($context->movecourseid)) {
-            if ($context->movecourseid == 'current') {
-                $context->movecourseid = $context->courseid;
-            }
-            if (!$course = $DB->get_record('course', array('id' => $context->movecourseid))) {
-                $this->error('Target course does not exist');
-            }
+        if ($context->movecourseid == 'current') {
+            $movecourseid = $context->courseid;
         } else {
-            $this->warn('Course id is runtime and thus unchecked. It may fail on execution.');
+            $movecourseid = $context->movecourseid;            
+        }
+
+        if (!$course = $DB->get_record('course', array('id' => $movecourseid))) {
+            $this->error('Move course : Target course does not exist');
         }
 
         if (empty($context->coursecatid)) {
             if (empty($context->options->ifexists)) {
-                $this->error('Missing or empty coursecat id');
+                $this->error('Move course : Missing or empty coursecat id');
             }
         }
 
         if (!$this->is_runtime($context->coursecatid) && empty($context->options->ifexists)) {
             if (!$DB->record_exists('course_categories', array('id' => $context->coursecatid))) {
-                $this->error('Target course category does not exist');
+                $this->error('Move course : Target course category does not exist');
             }
         } else {
             if (empty($context->options->ifexists)) {
-                $this->warn('Course category id is runtime and thus unchecked. It may fail on execution.');
+                $this->warn('Move course : Course category id is runtime and thus unchecked. It may fail on execution.');
             } else {
-                $this->warn('Course category id is runtime and thus unchecked. It will not fail on execution.');
+                $this->warn('Move course : Course category id is runtime and thus unchecked. It will not fail on execution.');
             }
         }
     }

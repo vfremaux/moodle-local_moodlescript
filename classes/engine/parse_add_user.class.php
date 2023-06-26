@@ -28,6 +28,17 @@ use \StdClass;
 
 class parse_add_user extends tokenizer {
 
+	public static $samples;
+
+    public function __construct($remainder, parser &$parser) {
+        parent::__construct($remainder, $parser);
+        self::$samples = "ADD USER harry.potter IDENTIFIED BY \"f4t3rD34\" HAVING\n";
+        self::$samples .= "firstname: \"Harry\"\n";
+        self::$samples .= "lastname: \"Potter\"\n";
+        self::$samples .= "email: \"harry.potter@poudlard.edu\"\n";
+        self::$samples .= "department: \"first year\"\n";
+    }
+
     /*
      * Add keyword needs find what to add in the remainder
      */

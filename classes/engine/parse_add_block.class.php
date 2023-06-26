@@ -51,12 +51,12 @@ class parse_add_block extends tokenizer {
 
         if (preg_match($pattern, $this->remainder, $matches)) {
 
-            $handler = new \local_moodlescript\engine\handle_add_block();
+            $handler = new handle_add_block();
             $context = new StdClass;
             $context->blockname = $matches[1];
 
             $target = $matches[2];
-            $identifier = new \local_moodlescript\engine\parse_identifier('course', $this->logger);
+            $identifier = new parse_identifier('course', $this->logger);
             if ($target == 'current') {
                 $context->blockcourseid = $target;
             } else {
@@ -68,7 +68,7 @@ class parse_add_block extends tokenizer {
             // format page specific.
             if (!empty($context->params->page)) {
                 // Get page id from idnumber or other naming attribute.
-                $identifier = new \local_moodlescript\engine\parse_identifier('format_page', $this->logger);
+                $identifier = new parse_identifier('format_page', $this->logger);
                 $context->param->pageid = $identifier->parse($context->params->page);
                 unset($context->params->page);
             }

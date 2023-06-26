@@ -24,19 +24,30 @@ namespace local_moodlescript\engine;
 
 defined('MOODLE_INTERNAL') || die;
 
-require_once($CFG->dirroot.'/lib/coursecatlib.php');
+use \StdClass;
+use \core_course_category;
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
 
 class handle_add_category extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
-        $catdata = new \Stdclass;
-        $catdata->parent = $context->parentcategoryid;
+        $catdata = new Stdclass;
+
+        if (!isset($context->parentcategoryid)) {
+            $context->parentcategoryid = 0;
+        }
+
+        if ($context->parentcategoryid == 'current') {
+            // If current has never been set in context, route to top category.
+            $context->parentcategoryid = $context->categoryid;
+        }
+        $catdata->parent = 0 + @$context->parentcategoryid;
         $catdata->name = $context->name;
         if (!empty($context->params)) {
             foreach ($context->params as $key => $value) {
@@ -52,48 +63,65 @@ class handle_add_category extends handler {
             // idnumber is the only external unique identification.
             if ($oldcat = $DB->get_record('course_categories', array('idnumber' => $context->params->idnumber))) {
                 $catdata->id = $oldcat->id;
+                $context->categoryid = $oldcat->id; // Change the current context.
                 $DB->update_record('course_categories', $catdata);
                 $this->log("Category {$oldcat->id} updated ");
                 $updated = true;
             }
+
+            if (!$this->stack->is_context_frozen()) {
+                $this->stack->update_current_context('coursecatid', $oldcat->id);
+                $this->stack->update_current_context('parentcategoryid', $oldcat->id);
+            }
         }
 
         if (!$updated) {
-            \coursecat::create($catdata);
+            $newcat = core_course_category::create($catdata);
+            $context->categoryid = $newcat->id; // Change the current context.
             if ($context->parentcategoryid) {
                 $parentcat = $DB->get_field('course_categories', 'name', array('id' => $context->parentcategoryid));
                 $this->log('Category added to parent cat '.$parentcat);
             } else {
                 $this->log('Category added to root cat ');
             }
+
+            if (!$this->stack->is_context_frozen()) {
+                $this->stack->update_current_context('coursecatid', $newcat->id);
+                $this->stack->update_current_context('parentcategoryid', $newcat->id);
+            }
         }
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
-        // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->name)) {
-            $this->error('Empty name not allowed');
+            $this->error('Add category path : Empty name not allowed');
         }
 
-        if (empty($context->parentcategoryid) && $context->parentcategoryid !== 0) {
-            $this->error('Missing parent category (can be 0)');
+        if (!isset($context->parentcategoryid)) {
+            $context->parentcategoryid = 0;
+            $this->warning('Add category path : Parent category defaults to 0');
         }
 
-        if ($context->parentcategoryid) {
+        if ($context->parentcategoryid != 'current') {
             if (!$DB->record_exists('course_categories', array('id' => $context->parentcategoryid))) {
-                $this->error('Parent category does not exist');
+                $this->error('Add category path : Parent category does not exist');
             }
         }
 
         if (empty($context->options->ifnotexists)) {
             if (!empty($context->params->idnumber) &&
                 $DB->record_exists('course_categories', array('idnumber' => $context->params->idnumber))) {
-                $this->error('Category IDNumber is already used');
+                $this->error('Add category path : Category IDNumber is already used');
             }
         }
 
@@ -115,6 +143,9 @@ class handle_add_category extends handler {
         );
 
         $this->check_context_attributes($attrdesc);
-    }
 
+        // Pass inputs to internals.
+        $this->stack = $stack;
+        $this->context = $context;
+    }
 }

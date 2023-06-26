@@ -22,33 +22,52 @@
  */
 namespace local_moodlescript\engine;
 
+use \StdClass;
+use \context_course;
+require_once($CFG->dirroot.'/local/moodlescript/classes/exceptions/execution_exception.class.php');
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_add_block extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         // Get a block instance of the block class.
         $blockinstance = block_instance($context->blockname);
 
-        $blockrecord = new \StdClass;
+        $blockrecord = new StdClass;
         $blockrecord->blockname = $context->blockname;
 
         if ($context->blockcourseid == 'current') {
             $context->blockcourseid = $context->courseid;
         }
 
-        $parentcontext = \context_course::instance($context->blockcourseid);
+        if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
+            $this->error('Add block runtme : Current Course '.$context->blockcourseid.' does not exist at execution time');
+            throw new execution_exception($this->stack->print_errors());
+        }
+
+        if (!empty($this->dynamiccheckstatus)) {
+            $resolved = new StdClass;
+            $resolved->course = $course;
+            $this->dynamic_check($context, $stack, $resolved);
+            if (!empty($stack->has_errors())) {
+                throw new execution_exception($this->stack->print_errors());
+            }
+        }
+
+        $parentcontext = context_course::instance($context->blockcourseid);
 
         // Check for unicity.
         if (!$blockinstance->instance_allow_multiple()) {
             $params = array('blockname' => $context->blockname, 'parentcontextid' => $parentcontextid);
             if ($DB->get_record('block_instances', $params)) {
-                $this->error('Could not instanciate block '.$context->blockname.' because already one in course');
-                return $result;
+                $this->error('Add block : Could not instanciate block '.$context->blockname.' because already one in course');
+                return false;
             }
         }
 
@@ -57,6 +76,8 @@ class handle_add_block extends handler {
         $blockrecord->pagetypepattern = 'course-view-*';
         $blockrecord->defaultregion = 'side-post';
         $blockrecord->defaultweight = 0;
+        $blockrecord->timecreated = time();
+        $blockrecord->timemodified = time();
 
         if (!empty($context->params->configdata)) {
             $blockrecord->configdata = $context->params->configdata;
@@ -67,7 +88,7 @@ class handle_add_block extends handler {
 
         // Now eventually relocate the block locally if additional params have been given.
         $mustrelocate = false;
-        $relocation = new \StdClass;
+        $relocation = new StdClass;
         $relocation->region = $blockrecord->defaultregion;
         $relocation->weight = $blockrecord->defaultweight;
 
@@ -113,51 +134,84 @@ class handle_add_block extends handler {
             $pagetype = 'course-view-' . $courseformat;
             $relocation->pagetype = $pagetype;
             $relocation->subpage = '';
-            $coursecontext = \context_course::instance($context->blockcourseid);
+            $coursecontext = context_course::instance($context->blockcourseid);
             $relocation->contextid = $coursecontext->id;
             $DB->insert_record('block_positions', $relocation);
             $this->log('Block '.$context->blockname.' relocated in course '.$context->blockcourseid);
         }
 
+        if (!$this->stack->is_context_frozen()) {
+            $this->stack->update_current_context('blockid', $blockid);
+        }
 
-        $result[] = $blockid;
-        return $result;
+        $results[] = $blockid;
+        return $blockid;
     }
 
-    public function check(&$context, &$stack) {
-        global $DB, $CFG;
+    /**
+     * Pre-checks executability conditions (static).
+     * Must NOT modify context.
+     */
+    public function check(&$stack) {
+        global $DB;
 
         $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->blockname)) {
             $this->error('empty blockname');
-            $block = $DB->get_record('blocks', array('name' => $context->blockname));
-            if (empty($block)) {
-                $this->error('this block type is not installed');
-            }
-            if (!$block->visible) {
-                $this->error('This block type is not exnabled ');
-            }
         }
 
-        if ($context->blockcourseid == 'current') {
-            $context->blockcourseid = $context->courseid;
+        $block = $DB->get_record('block', array('name' => $context->blockname));
+        if (empty($block)) {
+            $this->error('Add block : This block type is not installed');
+        }
+        if (!$block->visible) {
+            $this->error('Add block : This block type is not enabled ');
         }
 
-        if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
-            $this->error('Missing target course for block insertion');
+        if ($context->blockcourseid != 'current') {
+            if (!$course = $DB->get_record('course', array('id' => $context->blockcourseid))) {
+                $this->error('Add block : Missing target course for block insertion');
+            }
         }
 
         // Add more controls on params, location and region names.
         if (!empty($context->position)) {
             if (!in_array($context->position, array('last', 'first'))) {
                 if (!is_numeric($context->position)) {
-                    $this->error('Block position is invalid non numeric value.');
+                    $this->error('Add block : Block position is invalid non numeric value.');
                 }
             }
         }
 
+        if (!empty($course)) {
+            $resolved = new StdClass;
+            $resolved->course = $course;
+            $this->dynamic_check($context, $stack, $resolved);
+        }
+    }
+
+    /**
+     * All the checks that in some situation can only be done at execution time, usually
+     * because they are depending on dynamic setup of the execution context. Dynammic checks
+     * may though be called at check time, if the dynamic condition can be resolved and the
+     * whole check stack can be performed.
+     * Dynamic checks will mark a dynamiccheck status in the instance so execution phase can
+     * know it has been completed.
+     * @param objectref $context the whole handler context
+     * @param objectref &$stack the current stack object
+     * @param object $resolved some objects issued from static checking that are needed by
+     * the dynamic resolution to complete checks. Content of this object is an agreement between
+     * check() and dynamic_check()
+     */
+    public function dynamic_check(&$stack, $resolved, $isruntime = false) {
+        global $CFG, $DB;
+
+        $course = $resolved->course;
+
         // Resolve static theme application (course then category overrides).
+        // Only if course is statically resolved.
         if (!empty($context->location) && $course) {
 
             if (!in_array($context->location, array('left', 'right'))) {
@@ -197,22 +251,24 @@ class handle_add_block extends handler {
                 try {
                     $themeconfig = \theme_config::load($theme);
                 } catch (\Exception $e) {
-                    $this->error('Something wrong in theme config. '.print_r($e, true));
+                    $this->error('Add block : Something wrong in theme config. '.print_r($e, true));
                     return;
                 }
                 if (!$themeconfig) {
-                    $this->warn('undefined theme config. ');
+                    $this->warn('Add block : undefined theme config. ');
                     return;
                 }
                 $layoutregions = $themeconfig->layouts['course']['regions'];
                 debug_trace("Theme regions $context->location in ". print_r($layoutregions, true));
                 if (!in_array($context->location, $layoutregions)) {
                     debug_trace("Bad location");
-                    $this->error('Block location region '.$context->location.' name is unknown in the theme used in target course.');
+                    $this->error('Add block : Block location region '.$context->location.' name is unknown in the theme used in target course.');
+                    return;
                 }
                 debug_trace("Location resolved");
             }
         }
-    }
 
+        $this->dynamiccheckstatus = 0;
+    }
 }

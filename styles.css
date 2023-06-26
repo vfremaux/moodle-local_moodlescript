@@ -2,3 +2,17 @@
 .processing-flatform * {
     display:inline;
 }
+
+/* display conditions should be discrete */
+div[id*="dispcondition"] {
+    font-size: 80%;
+    /* background-color: beige; */
+    color: #00bbbb;
+}
+
+div[id*="dispcondition"] input {
+    height: 1.8em;
+    font-size: 100%;
+    width: 80em !important;
+    background-color: #add;
+}

@@ -22,23 +22,26 @@
  */
 namespace local_moodlescript\engine;
 
+use \context;
+use \context_system;
+
 defined('MOODLE_INTERNAL') || die;
 
 class handle_remove_capability extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         $permission = CAP_INHERIT;
 
         if (empty($context->params->contextid)) {
-            $capcontext = \context_system::instance();
+            $capcontext = context_system::instance();
         } else {
-            $capcontext = \context::instance_by_id($context->params->contextid);
+            $capcontext = context::instance_by_id($context->params->contextid);
         }
 
         role_change_permission($context->roleid, $capcontext, $context->capability, $permission);
@@ -48,22 +51,41 @@ class handle_remove_capability extends handler {
         $report .= ' with permission "'.$cappermission.'" in context '.$capcontext->id;
 
         $this->log($report);
+        return true;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
         global $DB;
 
         // Pass incoming context to internals.
-        $this->stack = &$stack;
-        $this->context = &$context;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->capability)) {
             $this->error('empty capability');
         }
 
+        if (!$DB->get_record('capabilities', array('name' > $context->capability))) {
+            $this->error('Unknown capability '.$context->capability);
+        }
+
         if (empty($context->roleid)) {
             $this->error('empty roleid');
         }
-    }
 
+        if (!$DB->get_record('role', array('roleid' > $context->roleid))) {
+            $this->error('Unknown role ID '.$context->roleid);
+        }
+
+        if (!empty($context->params->contextid)) {
+            if (!$DB->get_record('role', array('context' > $context->params->contextid))) {
+                $this->error('Unknown context ID '.$context->params->contextid);
+            }
+        }
+    }
 }

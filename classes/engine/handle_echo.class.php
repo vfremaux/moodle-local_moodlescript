@@ -26,31 +26,39 @@ defined('MOODLE_INTERNAL') || die;
 
 class handle_echo extends handler {
 
-    public function execute($result, &$context, &$stack) {
+    public function execute(&$results, &$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if ($context->argument == 'GLOBALS') {
             $str = "GLOBALS:\n";
             foreach ($context as $key => $value) {
-                $str .= "    $key: $value\n";
+                $str .= "    $key: ".$this->resolve_variables($value)."\n";
             }
             $str .= "\n";
             $this->log($str);
             return;
         }
 
-        $this->log($context->argument);
+        $this->log($this->resolve_variables($context->argument));
+        return true;
     }
 
-    public function check(&$context, &$stack) {
+    /**
+     * Remind that Check MUST NOT alter the context. Just execute any pre-execution tests that might 
+     * be necessary.
+     * @param $array &$stack the script stack.
+     */
+    public function check(&$stack) {
 
-        $this->stack = &$stack;
+        $this->stack = $stack;
+        $context = $this->stack->get_current_context();
 
         if (empty($context->argument)) {
             $this->error('Nothing to print');
             return;
         }
-        $this->log('Echoed');
+        // $this->log('Check : Echoed');
     }
 }

@@ -35,6 +35,7 @@ class parse_suspend_user extends tokenizer {
         self::$samples .= "SUSPEND USER id:<userid>\n";
         self::$samples .= "SUSPEND USER email:<email>\n";
         self::$samples .= "SUSPEND USER username:<username>\n";
+        self::$samples .= "SUSPEND USER current\n";
     }
 
     /*
@@ -49,13 +50,13 @@ class parse_suspend_user extends tokenizer {
 
         if (preg_match($pattern, $this->remainder, $matches)) {
 
-            $handler = new \local_moodlescript\engine\handle_suspend_user();
+            $handler = new handle_suspend_user();
 
             $context = new StdClass;
 
             $target = $matches[1];
-            $identifier = new \local_moodlescript\engine\parse_identifier('user', $this->logger);
-            $context->userid = $identifier->parse($target);
+            $identifier = new parse_identifier('user', $this->logger);
+            $context->suspenduserid = $identifier->parse($target);
 
             $this->trace('...End parse ++');
             return array($handler, $context);
