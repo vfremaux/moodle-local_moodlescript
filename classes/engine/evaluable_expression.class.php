@@ -248,7 +248,8 @@ class evaluable_expression extends tokenizer {
      * parsed before so that parsing stack result is created.
      */
     public function evaluate() {
-        if (!$this->parsed) {
+        global $CFG;
+        if (!$this->parsed && ($CFG->debug == DEBUG_DEVELOPER)) {
             throw new moodle_exception("Attempt to evaluate an unparsed expression");
         }
 
