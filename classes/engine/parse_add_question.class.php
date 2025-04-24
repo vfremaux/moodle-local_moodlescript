@@ -16,8 +16,7 @@
 
 /**
  * Add an existing question to a quiz, or add some addable questiontypes (randoms)
-s * @package local_moodlescript
- * @category local
+ * @package local_moodlescript
  * @author Valery Fremaux (valery.fremaux@gmail.com)
  * @copyright (c) 2017 onwards Valery Fremaux (http://www.mylearningfactory.com)
  */

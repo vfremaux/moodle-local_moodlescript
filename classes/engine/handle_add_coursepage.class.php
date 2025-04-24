@@ -27,9 +27,9 @@ defined('MOODLE_INTERNAL') || die;
 require_once($CFG->dirroot.'/course/format/page/classes/page.class.php');
 require_once($CFG->dirroot.'/course/format/page/classes/tree.class.php');
 
-use \stdClass;
-use \moodle_exception;
-use \format\page\course_page;
+use stdClass;
+use moodle_exception;
+use format_page\course_page;
 
 class handle_add_coursepage extends handler {
 
